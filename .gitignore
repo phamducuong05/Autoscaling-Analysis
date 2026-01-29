@@ -1,0 +1,22 @@
+# virtual environment
+venv/
+.venv/
+
+__pycache__/
+*.py[cod]
+
+# environment
+.env
+
+# data, output and weights
+data/
+output/
+models/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+*/.ipynb_checkpoints/
+
+# OS
+.DS_Store
+Thumbs.db
