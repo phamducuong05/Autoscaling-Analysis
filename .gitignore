@@ -9,9 +9,12 @@ __pycache__/
 .env
 
 # data, output and weights
-data/
-output/
-models/
+data/*
+!data/**/.gitkeep
+output/*
+!output/**/.gitkeep
+models/*
+!models/.gitkeep
 
 # Jupyter Notebook checkpoints
 .ipynb_checkpoints/
