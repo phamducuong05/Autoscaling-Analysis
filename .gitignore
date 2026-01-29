@@ -9,7 +9,8 @@ __pycache__/
 .env
 
 # data, output and weights
-data/*
+data/**
+!data/**/
 !data/**/.gitkeep
 output/*
 !output/**/.gitkeep
