@@ -24,3 +24,6 @@ models/*
 # OS
 .DS_Store
 Thumbs.db
+
+# IDE
+.kilocode/
