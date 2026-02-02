@@ -366,7 +366,7 @@ else:
 # The value of **d** will be used in our ARIMA(p,d,q) model. Most time series only require d = 0 or d = 1. Higher values (d ≥ 2) are rare and may indicate the need for seasonal differencing or a different modeling approach.
 
 # %% [markdown]
-# ## 1.5 Autocorrelation Analysis (ACF and PACF)
+# ## 1.4 Autocorrelation Analysis (ACF and PACF)
 #
 # After ensuring stationarity, we analyze the **autocorrelation structure** to determine the AR (p) and MA (q) parameters:
 #
@@ -384,7 +384,7 @@ else:
 # - Gradual decay → MA component
 
 # %% [markdown]
-# ### 1.5.1 Plot ACF and PACF
+# ### 1.4.1 Plot ACF and PACF
 #
 # We'll plot the ACF and PACF for the (possibly differenced) series to identify patterns that suggest appropriate p and q values.
 
@@ -446,52 +446,111 @@ plt.show()
 # - Consider SARIMA (Seasonal ARIMA) model
 
 # %% [markdown]
-# ### 1.5.2 Interpret ACF and PACF for Parameter Selection
+# **Interpretation Result:**
 #
-# Based on the ACF and PACF plots, we'll make initial recommendations for p and q parameters.
-
-# %%
-# Analyze ACF and PACF patterns (manual inspection)
-print("=" * 60)
-print("ACF/PACF ANALYSIS - PARAMETER RECOMMENDATIONS")
-print("=" * 60)
-
-# Note: This is a qualitative analysis based on visual inspection
-# In practice, you would examine the actual plots and count significant lags
-
-print("\nBased on ACF and PACF plots:")
-print("-" * 60)
-print("1. Examine ACF plot (left):")
-print("   - Count significant lags before cutoff → potential MA(q)")
-print("   - Look for gradual decay pattern → potential AR component")
-print("")
-print("2. Examine PACF plot (right):")
-print("   - Count significant lags before cutoff → potential AR(p)")
-print("   - Look for gradual decay pattern → potential MA component")
-print("")
-print("3. Check for seasonality:")
-print("   - Regular spikes at fixed intervals → seasonal component")
-print("   - Consider SARIMA if seasonality is present")
-print("")
-print("4. Initial parameter recommendations:")
-print("   - p (AR order): [to be determined from PACF]")
-print("   - d (differencing):", d)
-print("   - q (MA order): [to be determined from ACF]")
+# These plots provide a classic diagnostic for time series analysis. Based on the patterns in the Autocorrelation Function (ACF) and Partial Autocorrelation Function (PACF), here is the breakdown of what this result indicates:
+#
+# ---
+#
+# **1. Non-Stationarity (The Primary Finding)**
+#
+# The most striking feature is in the **ACF plot**. The correlations start very high (near 1.0) and decay **very slowly and linearly**.
+#
+# - In a stationary series, the ACF should drop to zero quickly
+# - This "tailing off" over 50+ lags is a hallmark sign of a **trend** or **non-stationary** data
+# - **Action:** You likely need to apply **differencing** (e.g., d = 1) to stabilize the mean before fitting an ARIMA model
+#
+# ---
+#
+# **2. AR vs. MA Identification**
+#
+# If we look at the patterns while keeping the non-stationarity in mind:
+#
+# - **ACF (Left):** Shows a very gradual decay. Following your guidelines, this suggests an **Autoregressive (AR)** component is present
+# - **PACF (Right):** Shows a **sharp cutoff**. There is a very strong spike at Lag 1, followed by a significantly smaller (but still visible) spike at Lag 2, after which the values mostly drop into the blue shaded "noise" region (the confidence interval)
+#
+# > **Conclusion:** This specific combination (Gradual ACF decay + PACF cutoff at Lag 1 or 2) is a textbook indicator of an **AR(1) or AR(2)** process
+#
+# ---
+#
+# **3. Seasonality Check**
+#
+# - There are no obvious recurring "spikes" at regular intervals (like a sudden jump at lag 12 or 24)
+# - The decay is smooth, suggesting that **stochastic seasonality is not the dominant feature** here, or it is currently being masked by the strong non-stationary trend
+#
+# ---
+#
+# **Summary & Recommendation**
+#
+# Based on these results, your series is currently **non-stationary**.
+#
+# 1. **Difference the data:** Subtract the previous value from the current value (d = 1)
+# 2. **Re-run the ACF/PACF:** Once differenced, the ACF should drop to zero much faster
+# 3. **Model Selection:** After differencing, if the PACF still shows a sharp cutoff at lag 1 and the ACF decays, an **ARIMA(1, 1, 0)** would be your most likely starting candidate
+#
+# **Note:** The blue shaded areas in these plots represent the **95% confidence intervals**. Any bar that extends beyond this shaded area is considered **statistically significant** (meaning the correlation at that lag is likely real, not just random noise).
 
 # %% [markdown]
-# **ACF/PACF Interpretation Summary:**
+# ### 1.4.2 Resolving Conflicting Diagnostics
 #
-# The visual analysis of ACF and PACF provides initial estimates for:
+# In time series analysis, it's common to encounter **conflicting diagnostics** - where different tests suggest different conclusions about the data. A classic example is when the **ADF test** indicates the series is stationary, but the **ACF plot** shows slow decay typical of non-stationary series.
 #
-# - **p (AR order):** Number of significant lags in PACF before cutoff
-# - **q (MA order):** Number of significant lags in ACF before cutoff
-# - **d (differencing):** Already determined from stationarity test
+# This section explains how to interpret and resolve such contradictions.
 #
-# **Important Notes:**
-# - These are initial estimates based on visual inspection
-# - We'll use `auto_arima` (if available) or grid search to find optimal parameters
-# - Different parameter combinations can yield similar performance
-# - Model simplicity (lower p and q) is often preferred for interpretability
+# ---
+#
+# **Why the ADF says "Stationary"**
+#
+# The Augmented Dickey-Fuller test checks for a **unit root**. A very low p-value (e.g., p < 0.001) means the test is highly confident that the series does not have a unit root (it doesn't "wander" infinitely like a random walk).
+#
+# - The series likely has a **constant mean** it eventually returns to
+# - There is no stochastic trend that would require differencing to make it mathematically stable
+# - The test is designed to detect non-stationarity caused by unit roots specifically
+#
+# ---
+#
+# **Why the ACF looks "Non-Stationary"**
+#
+# As we observed in the ACF plot, the autocorrelation decays very slowly. This usually happens in two scenarios:
+#
+# 1. **High Persistence:** The series is technically stationary but has a very high "memory." A shock to the system takes a long time to die out (e.g., an AR model with a coefficient like 0.95 or 0.98).
+#
+# 2. **Trend Stationarity:** The series might be stationary around a deterministic trend (like a straight line going up), which the ADF test can sometimes detect as stationary if the "trend" flag is used, even though the ACF looks "laggy."
+#
+# ---
+#
+# **The Verdict: How to Model This**
+#
+# Because the ADF test is so strongly significant (p << 0.05), **you do not need to difference the data** (d = 0). Differencing a series that is already stationary is called "over-differencing" and can actually ruin your model's predictive power.
+#
+# **Recommended ARIMA Path**
+#
+# Since we are keeping the original data (d = 0), we should look back at the **PACF plot**:
+#
+# - The PACF cuts off sharply after Lag 1 or 2
+# - The ACF decays slowly
+#
+# This pattern confirms an **AR(p)** model. Based on the plots and this test, the best starting point is an **ARIMA(1, 0, 0)** or **ARIMA(2, 0, 0)**.
+#
+# ---
+#
+# **Summary Table**
+#
+# | Diagnostic | Result | Meaning |
+# | --- | --- | --- |
+# | **ADF p-value** | Very low (p << 0.05) | No unit root; Data is stationary |
+# | **ACF Pattern** | Slow Decay | High persistence (long memory) |
+# | **PACF Pattern** | Sharp Cutoff | Indicates the order p of the AR component |
+#
+# ---
+#
+# **Key Takeaways:**
+#
+# 1. **Trust the statistical test (ADF) over visual inspection** when there's a conflict about stationarity
+# 2. **Slow ACF decay doesn't always mean non-stationary** - it can indicate high persistence in a stationary series
+# 3. **Avoid over-differencing** - it can introduce unnecessary complexity and harm model performance
+# 4. **Use PACF to determine AR order** when ACF shows slow decay but the series is stationary
+# 5. **Start simple** - ARIMA(1,0,0) or ARIMA(2,0,0) are good initial candidates before trying more complex models
 
 # %% [markdown]
 # ## 1.6 Train/Test Split
