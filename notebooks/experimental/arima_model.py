@@ -82,7 +82,10 @@ import warnings
 # Time series and statistical analysis
 from statsmodels.tsa.arima.model import ARIMA
 from statsmodels.tsa.stattools import adfuller
+from statsmodels.stats.stattools import durbin_watson
+from statsmodels.stats.diagnostic import acorr_ljungbox
 from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
+from scipy.stats import jarque_bera
 
 # Auto-ARIMA for parameter selection
 from pmdarima import auto_arima
@@ -95,6 +98,39 @@ warnings.filterwarnings('ignore')
 # Display settings
 pd.set_option('display.max_columns', None)
 pd.set_option('display.width', None)
+
+# Evaluation metrics function
+from sklearn.metrics import mean_squared_error, mean_absolute_error
+
+def calculate_metrics(actual, predicted):
+    """
+    Calculate evaluation metrics for time series forecasting.
+    
+    Parameters:
+    -----------
+    actual : pd.Series or np.array
+        Actual values
+    predicted : pd.Series or np.array
+        Predicted values
+        
+    Returns:
+    --------
+    dict : Dictionary containing MSE, RMSE, MAE, and MAPE
+    """
+    mse = mean_squared_error(actual, predicted)
+    rmse = np.sqrt(mse)
+    mae = mean_absolute_error(actual, predicted)
+    
+    # MAPE (avoid division by zero)
+    mask = actual != 0
+    mape = np.mean(np.abs((actual[mask] - predicted[mask]) / actual[mask])) * 100
+    
+    return {
+        'MSE': mse,
+        'RMSE': rmse,
+        'MAE': mae,
+        'MAPE': mape
+    }
 
 print("✓ All libraries imported successfully")
 
@@ -132,8 +168,10 @@ else:
     raise FileNotFoundError(f"Data file not found: {data_5m_path}")
 
 # Define system downtime period (Aug 1-3, 1995 due to storm)
-downtime_start = pd.Timestamp('1995-08-01')
-downtime_end = pd.Timestamp('1995-08-03')
+# Apply timezone from data to ensure compatibility
+data_tz = df_5m.index.tz
+downtime_start = pd.Timestamp('1995-08-01').tz_localize(data_tz)
+downtime_end = pd.Timestamp('1995-08-03').tz_localize(data_tz)
 
 # %% [markdown]
 # ## 1.3 Stationarity Assessment
@@ -569,8 +607,10 @@ plt.show()
 
 # %%
 # Define train/test split dates
-train_end_date = pd.Timestamp('1995-08-22')  # End of training period
-test_start_date = pd.Timestamp('1995-08-23')  # Start of test period
+# Check if data has timezone and apply it to split dates
+data_tz = df_5m.index.tz
+train_end_date = pd.Timestamp('1995-08-22').tz_localize(data_tz)  # End of training period
+test_start_date = pd.Timestamp('1995-08-23').tz_localize(data_tz)  # Start of test period
 
 # Split the data
 train_data = df_5m[df_5m.index <= train_end_date]['requests']
@@ -741,7 +781,501 @@ print(f"Training samples: {len(train_data)}")
 # The selected ARIMA(p,d,q) model balances goodness-of-fit with model complexity, helping to avoid overfitting.
 
 # %% [markdown]
-# ## 2.2 Model Fitting
+# ## 2.2 Comparison: Manual vs Automatic Parameter Selection
+#
+# In this section, we'll compare two approaches for selecting ARIMA parameters:
+#
+# 1. **Manual Selection:** Based on ACF/PACF analysis from Section 1
+# 2. **Automatic Selection:** Using auto_arima algorithm
+#
+# This comparison helps us understand whether the visual/statistical analysis from Section 1 aligns with the automated search, and which approach yields better model performance.
+
+# %% [markdown]
+# ### 2.2.1 Manual Parameter Selection (Based on Section 1 Analysis)
+#
+# From Section 1.4.2, we observed:
+#
+# **ACF Pattern:**
+# - Very slow, linear decay over 50+ lags
+# - Indicates high persistence in the series
+# - Suggests an **Autoregressive (AR)** component
+#
+# **PACF Pattern:**
+# - Sharp cutoff after Lag 1 (very strong spike)
+# - Smaller but still visible spike at Lag 2
+# - Values drop into noise region after Lag 2
+# - Suggests **AR(1)** or **AR(2)** process
+#
+# **Stationarity:**
+# - ADF test indicated the series is stationary (p << 0.05)
+# - No differencing needed (d = 0)
+#
+# **Recommended Manual Parameters:**
+# Based on the ACF/PACF analysis, we'll test two manual models:
+# - **Model A:** ARIMA(1, 0, 0) - Simple AR(1) model
+# - **Model B:** ARIMA(2, 0, 0) - AR(2) model to capture the secondary spike at Lag 2
+
+# %%
+print("=" * 60)
+print("MANUAL PARAMETER SELECTION - MODEL FITTING")
+print("=" * 60)
+
+# Fit Manual Model A: ARIMA(1, 0, 0)
+print("\n--- Manual Model A: ARIMA(1, 0, 0) ---")
+manual_model_a = ARIMA(train_data, order=(1, 0, 0))
+fitted_manual_a = manual_model_a.fit()
+
+print(f"AIC: {fitted_manual_a.aic:.2f}")
+print(f"BIC: {fitted_manual_a.bic:.2f}")
+print(f"Log Likelihood: {fitted_manual_a.llf:.2f}")
+
+# Fit Manual Model B: ARIMA(2, 0, 0)
+print("\n--- Manual Model B: ARIMA(2, 0, 0) ---")
+manual_model_b = ARIMA(train_data, order=(2, 0, 0))
+fitted_manual_b = manual_model_b.fit()
+
+print(f"AIC: {fitted_manual_b.aic:.2f}")
+print(f"BIC: {fitted_manual_b.bic:.2f}")
+print(f"Log Likelihood: {fitted_manual_b.llf:.2f}")
+
+# %% [markdown]
+# ### 2.2.2 Automatic Parameter Selection (auto_arima)
+#
+# The auto_arima function has already been executed in Section 2.1. Let's extract and display the key results for comparison.
+
+# %%
+print("=" * 60)
+print("AUTOMATIC PARAMETER SELECTION - RESULTS")
+print("=" * 60)
+print(f"Optimal Model: ARIMA({p}, {d_optimal}, {q})")
+print(f"AIC: {auto_model.aic():.2f}")
+print(f"BIC: {auto_model.bic():.2f}")
+
+# %% [markdown]
+# ### 2.2.3 Comparison Summary
+#
+# Let's create a comprehensive comparison of all three models (2 manual + 1 automatic).
+
+# %%
+print("=" * 70)
+print("COMPREHENSIVE MODEL COMPARISON")
+print("=" * 70)
+print(f"{'Model':<25} {'Parameters':<15} {'AIC':<12} {'BIC':<12} {'ΔAIC':<10}")
+print("-" * 70)
+
+# Calculate AIC differences (relative to best model)
+models = {
+    'Manual A (ARIMA 1,0,0)': (fitted_manual_a, (1, 0, 0)),
+    'Manual B (ARIMA 2,0,0)': (fitted_manual_b, (2, 0, 0)),
+    f'Auto (ARIMA {p},{d_optimal},{q})': (auto_model, (p, d_optimal, q))
+}
+
+# Helper function to get AIC from different model types
+def get_model_aic(model):
+    """Get AIC from model, handling both statsmodels and pmdarima."""
+    if hasattr(model, 'aic') and callable(model.aic):
+        # pmdarima model: aic is a method
+        return model.aic()
+    else:
+        # statsmodels model: aic is a property
+        return model.aic
+
+# Find best AIC
+best_aic = min(get_model_aic(model) for model, _ in models.values())
+
+for model_name, (model, params) in models.items():
+    aic = get_model_aic(model)
+    bic = get_model_aic(model) if hasattr(model, 'bic') and callable(model.bic) else model.bic
+    delta_aic = aic - best_aic
+    params_str = f"({params[0]}, {params[1]}, {params[2]})"
+    print(f"{model_name:<25} {params_str:<15} {aic:<12.2f} {bic:<12.2f} {delta_aic:<10.2f}")
+
+print("\n" + "=" * 70)
+print("INTERPRETATION")
+print("=" * 70)
+print("• Lower AIC/BIC indicates better model (balance of fit and complexity)")
+print("• ΔAIC < 2: Substantial evidence for model")
+print("• ΔAIC 4-7: Less support for model")
+print("• ΔAIC > 10: Essentially no support for model")
+print("\n• Best model has ΔAIC = 0.0 (reference point)")
+
+# %% [markdown]
+# **Model Comparison Interpretation:**
+#
+# **Key Observations:**
+#
+# 1. **Manual vs Automatic Alignment:**
+#    - If the auto_arima selected model matches or is close to our manual selection, it validates our ACF/PACF analysis
+#    - If there's a significant difference, we need to understand why
+#
+# 2. **Information Criteria (AIC/BIC):**
+#    - **AIC** favors more complex models (better fit, potentially overfitting)
+#    - **BIC** penalizes complexity more heavily (simpler models preferred)
+#    - Lower values are better for both
+#
+# 3. **ΔAIC (AIC Difference):**
+#    - ΔAIC < 2: Models are essentially equivalent
+#    - ΔAIC 4-7: Considerably less support
+#    - ΔAIC > 10: Essentially no support
+#
+# 4. **Model Selection Strategy:**
+#    - If multiple models have similar AIC (ΔAIC < 2), choose the simplest (Occam's razor)
+#    - If one model has significantly lower AIC, it's the preferred choice
+#    - Consider both AIC and BIC for robustness
+
+# %% [markdown]
+# ### 2.2.4 Detailed Model Comparison
+#
+# Let's examine the detailed characteristics of each model, including parameter estimates and their statistical significance.
+
+# %%
+print("=" * 70)
+print("DETAILED MODEL PARAMETERS AND SIGNIFICANCE")
+print("=" * 70)
+
+# Manual Model A details
+print("\n--- Manual Model A: ARIMA(1, 0, 0) ---")
+print(fitted_manual_a.summary().tables[1])
+
+# Manual Model B details
+print("\n--- Manual Model B: ARIMA(2, 0, 0) ---")
+print(fitted_manual_b.summary().tables[1])
+
+# Auto Model details
+print(f"\n--- Auto Model: ARIMA({p}, {d_optimal}, {q}) ---")
+print(auto_model.summary().tables[1])
+
+# %% [markdown]
+# **Parameter Significance Analysis:**
+#
+# For each model, we examine:
+#
+# - **coef:** Estimated parameter value
+# - **std err:** Standard error of the estimate
+# - **z:** z-statistic (coef / std err)
+# - **P>|z|:** p-value for testing if coefficient is zero
+#
+# **Interpretation:**
+# - **P < 0.05:** Coefficient is statistically significant
+# - **P ≥ 0.05:** Coefficient may not be needed (model could be simplified)
+# - **Large |z|:** Strong evidence for the parameter's importance
+#
+# **Key Questions:**
+# 1. Are all parameters in the auto_arima model significant?
+# 2. Do the manual models have significant parameters?
+# 3. Are there any redundant parameters (high p-values)?
+# 4. Which model has the most parsimonious (efficient) parameter set?
+
+# %% [markdown]
+# ### 2.2.5 In-Sample Performance Comparison
+#
+# Let's compare the in-sample fit quality of all three models using multiple metrics.
+
+# %%
+# Get fitted values for all models
+fitted_auto = auto_model.fittedvalues()
+fitted_manual_a_values = fitted_manual_a.fittedvalues
+fitted_manual_b_values = fitted_manual_b.fittedvalues
+
+# Calculate metrics for all models
+metrics_auto = calculate_metrics(train_data[d_optimal:], fitted_auto)
+metrics_manual_a = calculate_metrics(train_data, fitted_manual_a_values)
+metrics_manual_b = calculate_metrics(train_data, fitted_manual_b_values)
+
+print("=" * 70)
+print("IN-SAMPLE PERFORMANCE COMPARISON")
+print("=" * 70)
+print(f"{'Model':<25} {'RMSE':<12} {'MAE':<12} {'MAPE':<12}")
+print("-" * 70)
+print(f"{'Manual A (1,0,0)':<25} {metrics_manual_a['RMSE']:<12.2f} {metrics_manual_a['MAE']:<12.2f} {metrics_manual_a['MAPE']:<12.2f}%")
+print(f"{'Manual B (2,0,0)':<25} {metrics_manual_b['RMSE']:<12.2f} {metrics_manual_b['MAE']:<12.2f} {metrics_manual_b['MAPE']:<12.2f}%")
+print(f"{'Auto (ARIMA)':<25} {metrics_auto['RMSE']:<12.2f} {metrics_auto['MAE']:<12.2f} {metrics_auto['MAPE']:<12.2f}%")
+
+print("\n" + "=" * 70)
+print("RELATIVE PERFORMANCE (vs Best Model)")
+print("=" * 70)
+
+# Find best model for each metric
+best_rmse = min(metrics_auto['RMSE'], metrics_manual_a['RMSE'], metrics_manual_b['RMSE'])
+best_mae = min(metrics_auto['MAE'], metrics_manual_a['MAE'], metrics_manual_b['MAE'])
+best_mape = min(metrics_auto['MAPE'], metrics_manual_a['MAPE'], metrics_manual_b['MAPE'])
+
+models_metrics = {
+    'Manual A (1,0,0)': metrics_manual_a,
+    'Manual B (2,0,0)': metrics_manual_b,
+    'Auto (ARIMA)': metrics_auto
+}
+
+for model_name, metrics in models_metrics.items():
+    rmse_diff = ((metrics['RMSE'] - best_rmse) / best_rmse) * 100
+    mae_diff = ((metrics['MAE'] - best_mae) / best_mae) * 100
+    mape_diff = ((metrics['MAPE'] - best_mape) / best_mape) * 100
+    print(f"\n{model_name}:")
+    print(f"  RMSE: {rmse_diff:+.2f}% from best")
+    print(f"  MAE:  {mae_diff:+.2f}% from best")
+    print(f"  MAPE: {mape_diff:+.2f}% from best")
+
+# %% [markdown]
+# **In-Sample Performance Analysis:**
+#
+# **Important Note:** In-sample performance is not the primary criterion for model selection because:
+# - All models will fit the training data reasonably well
+# - More complex models may have better in-sample fit but worse out-of-sample performance (overfitting)
+# - The true test is how well the model generalizes to unseen data
+#
+# **However, in-sample comparison is useful for:**
+# - Understanding how each model captures the training data patterns
+# - Identifying potential overfitting (very low errors but poor generalization)
+# - Validating that all models are reasonably specified
+
+# %% [markdown]
+# ### 2.2.6 Visual Comparison of Model Fits
+#
+# Let's visualize how each model fits the training data to see the differences in their behavior.
+
+# %%
+# Create comparison plot
+fig, axes = plt.subplots(3, 1, figsize=(16, 14))
+
+# Plot 1: Manual Model A
+axes[0].plot(train_data.index, train_data, label='Actual Data',
+             color='#1f77b4', linewidth=0.8, alpha=0.7)
+axes[0].plot(fitted_manual_a_values.index, fitted_manual_a_values, 
+             label='Fitted - Manual A (1,0,0)', color='red', linewidth=1.5, alpha=0.9)
+axes[0].set_title('Manual Model A: ARIMA(1, 0, 0) - In-Sample Fit', fontsize=12, fontweight='bold')
+axes[0].set_xlabel('Date', fontsize=10)
+axes[0].set_ylabel('Requests', fontsize=10)
+axes[0].legend(loc='upper left')
+axes[0].grid(True, alpha=0.3)
+
+# Plot 2: Manual Model B
+axes[1].plot(train_data.index, train_data, label='Actual Data',
+             color='#1f77b4', linewidth=0.8, alpha=0.7)
+axes[1].plot(fitted_manual_b_values.index, fitted_manual_b_values, 
+             label='Fitted - Manual B (2,0,0)', color='green', linewidth=1.5, alpha=0.9)
+axes[1].set_title('Manual Model B: ARIMA(2, 0, 0) - In-Sample Fit', fontsize=12, fontweight='bold')
+axes[1].set_xlabel('Date', fontsize=10)
+axes[1].set_ylabel('Requests', fontsize=10)
+axes[1].legend(loc='upper left')
+axes[1].grid(True, alpha=0.3)
+
+# Plot 3: Auto Model
+axes[2].plot(train_data.index, train_data, label='Actual Data',
+             color='#1f77b4', linewidth=0.8, alpha=0.7)
+axes[2].plot(fitted_auto.index, fitted_auto, 
+             label=f'Fitted - Auto ({p},{d_optimal},{q})', color='orange', linewidth=1.5, alpha=0.9)
+axes[2].set_title(f'Auto Model: ARIMA({p}, {d_optimal}, {q}) - In-Sample Fit', fontsize=12, fontweight='bold')
+axes[2].set_xlabel('Date', fontsize=10)
+axes[2].set_ylabel('Requests', fontsize=10)
+axes[2].legend(loc='upper left')
+axes[2].grid(True, alpha=0.3)
+
+plt.tight_layout()
+plt.show()
+
+# %% [markdown]
+# **Figure X: Visual Comparison of Model Fits**
+#
+# This comparison shows how each model captures the training data patterns:
+#
+# - **Panel 1 (Manual A):** Simple AR(1) model - smooth, lagged response
+# - **Panel 2 (Manual B):** AR(2) model - can capture more complex dynamics
+# - **Panel 3 (Auto):** Automatically selected model - optimized for AIC
+#
+# **Visual Assessment:**
+# - Look for how closely each fitted line follows the actual data
+# - Note any systematic deviations or lag in the fitted values
+# - Compare smoothness vs responsiveness of each model
+# - Identify if any model overfits (follows noise too closely)
+
+# %% [markdown]
+# ### 2.2.7 Residual Diagnostics Comparison
+#
+# Let's compare the residual diagnostics across all three models to assess which one best satisfies ARIMA assumptions.
+
+# %%
+print("=" * 70)
+print("RESIDUAL DIAGNOSTICS COMPARISON")
+print("=" * 70)
+
+# Calculate residuals for all models
+residuals_auto = auto_model.resid()
+residuals_manual_a = fitted_manual_a.resid
+residuals_manual_b = fitted_manual_b.resid
+
+# Function to perform diagnostic tests
+def diagnostic_tests(residuals, model_name):
+    """Perform statistical tests on residuals."""
+    results = {}
+    
+    # Ljung-Box test
+    lb_test = acorr_ljungbox(residuals, lags=[10], return_df=True)
+    results['lb_pvalue'] = lb_test['lb_pvalue'].iloc[0]
+    
+    # Jarque-Bera test
+    jb_stat, jb_pvalue = jarque_bera(residuals)
+    results['jb_pvalue'] = jb_pvalue
+    
+    # Durbin-Watson test
+    dw_stat = durbin_watson(residuals)
+    results['dw_stat'] = dw_stat
+    
+    return results
+
+# Perform tests for all models
+diagnostics_auto = diagnostic_tests(residuals_auto, "Auto")
+diagnostics_manual_a = diagnostic_tests(residuals_manual_a, "Manual A")
+diagnostics_manual_b = diagnostic_tests(residuals_manual_b, "Manual B")
+
+print(f"\n{'Model':<25} {'Ljung-Box p':<15} {'Jarque-Bera p':<15} {'Durbin-Watson':<15}")
+print("-" * 70)
+print(f"{'Manual A (1,0,0)':<25} {diagnostics_manual_a['lb_pvalue']:<15.6f} {diagnostics_manual_a['jb_pvalue']:<15.6f} {diagnostics_manual_a['dw_stat']:<15.4f}")
+print(f"{'Manual B (2,0,0)':<25} {diagnostics_manual_b['lb_pvalue']:<15.6f} {diagnostics_manual_b['jb_pvalue']:<15.6f} {diagnostics_manual_b['dw_stat']:<15.4f}")
+print(f"{'Auto (ARIMA)':<25} {diagnostics_auto['lb_pvalue']:<15.6f} {diagnostics_auto['jb_pvalue']:<15.6f} {diagnostics_auto['dw_stat']:<15.4f}")
+
+print("\n" + "=" * 70)
+print("DIAGNOSTIC INTERPRETATION")
+print("=" * 70)
+print("• Ljung-Box p > 0.05: Residuals are uncorrelated (GOOD)")
+print("• Jarque-Bera p > 0.05: Residuals are normally distributed (GOOD)")
+print("• Durbin-Watson 1.5-2.5: No significant autocorrelation (GOOD)")
+
+# %% [markdown]
+# **Residual Diagnostics Comparison:**
+#
+# **Ideal Model Characteristics:**
+# 1. **Ljung-Box p-value > 0.05:** Residuals are white noise (no autocorrelation)
+# 2. **Jarque-Bera p-value > 0.05:** Residuals are normally distributed
+# 3. **Durbin-Watson statistic 1.5-2.5:** No first-order autocorrelation
+#
+# **Model Assessment:**
+# - **Manual A:** Simple model, may have larger residuals but potentially better diagnostics
+# - **Manual B:** More complex, may fit better but risk of overfitting
+# - **Auto:** Optimized for AIC, should balance fit and complexity
+#
+# **Trade-offs:**
+# - Better fit (lower RMSE) may come at the cost of worse diagnostics
+# - Simpler models often have better residual properties but may underfit
+# - The "best" model balances fit quality with diagnostic validity
+
+# %% [markdown]
+# ### 2.2.8 Final Model Selection
+#
+# Based on our comprehensive comparison, let's make a final decision on which model to use for forecasting.
+
+# %%
+print("=" * 70)
+print("FINAL MODEL SELECTION DECISION")
+print("=" * 70)
+
+# Create summary table
+print("\n" + "=" * 70)
+print("COMPARISON SUMMARY")
+print("=" * 70)
+print(f"{'Criterion':<20} {'Manual A':<15} {'Manual B':<15} {'Auto':<15}")
+print("-" * 70)
+
+# AIC comparison
+print(f"{'AIC':<20} {fitted_manual_a.aic:<15.2f} {fitted_manual_b.aic:<15.2f} {get_model_aic(auto_model):<15.2f}")
+
+# BIC comparison
+print(f"{'BIC':<20} {fitted_manual_a.bic:<15.2f} {fitted_manual_b.bic:<15.2f} {get_model_aic(auto_model) if hasattr(auto_model, 'bic') and callable(auto_model.bic) else auto_model.bic:<15.2f}")
+
+# RMSE comparison
+print(f"{'RMSE (In-Sample)':<20} {metrics_manual_a['RMSE']:<15.2f} {metrics_manual_b['RMSE']:<15.2f} {metrics_auto['RMSE']:<15.2f}")
+
+# Ljung-Box comparison
+lb_status_a = "✓" if diagnostics_manual_a['lb_pvalue'] > 0.05 else "✗"
+lb_status_b = "✓" if diagnostics_manual_b['lb_pvalue'] > 0.05 else "✗"
+lb_status_auto = "✓" if diagnostics_auto['lb_pvalue'] > 0.05 else "✗"
+print(f"{'Ljung-Box OK':<20} {lb_status_a:<15} {lb_status_b:<15} {lb_status_auto:<15}")
+
+# Complexity (number of parameters)
+complexity_a = 1  # AR(1)
+complexity_b = 2  # AR(2)
+complexity_auto = p + q  # AR(p) + MA(q)
+print(f"{'Parameters':<20} {complexity_a:<15} {complexity_b:<15} {complexity_auto:<15}")
+
+print("\n" + "=" * 70)
+print("RECOMMENDATION")
+print("=" * 70)
+
+# Determine best model based on AIC (primary criterion)
+best_model_name = ""
+best_model = None
+best_order = None
+
+if fitted_manual_a.aic <= fitted_manual_b.aic and fitted_manual_a.aic <= get_model_aic(auto_model):
+    best_model_name = "Manual Model A: ARIMA(1, 0, 0)"
+    best_model = fitted_manual_a
+    best_order = (1, 0, 0)
+elif fitted_manual_b.aic <= get_model_aic(auto_model):
+    best_model_name = "Manual Model B: ARIMA(2, 0, 0)"
+    best_model = fitted_manual_b
+    best_order = (2, 0, 0)
+else:
+    best_model_name = f"Auto Model: ARIMA({p}, {d_optimal}, {q})"
+    best_model = auto_model
+    best_order = (p, d_optimal, q)
+
+print(f"\nSelected Model: {best_model_name}")
+print(f"\nRationale:")
+print("• Primary criterion: Lowest AIC (balance of fit and complexity)")
+print("• Secondary criteria: BIC, residual diagnostics, model simplicity")
+print("• The selected model provides the best trade-off between accuracy and complexity")
+
+# Update the main model to use the selected one
+if best_model_name.startswith("Manual"):
+    if best_model_name.startswith("Manual A"):
+        p, d_optimal, q = 1, 0, 0
+    else:
+        p, d_optimal, q = 2, 0, 0
+    fitted_model = best_model
+
+print(f"\nProceeding with ARIMA({p}, {d_optimal}, {q}) for forecasting in Section 3")
+
+# %% [markdown]
+# **Final Model Selection:**
+#
+# **Decision Process:**
+#
+# 1. **Primary Criterion:** AIC (Akaike Information Criterion)
+#    - Balances model fit with complexity
+#    - Lower is better
+#    - Widely used for model selection in time series
+#
+# 2. **Secondary Criteria:**
+#    - BIC: Penalizes complexity more heavily
+#    - Residual diagnostics: Validates model assumptions
+#    - Model simplicity: Occam's razor (prefer simpler models)
+#
+# 3. **Practical Considerations:**
+#    - Computational efficiency (simpler models are faster)
+#    - Interpretability (fewer parameters are easier to explain)
+#    - Robustness (simpler models are less prone to overfitting)
+#
+# **Key Insights from Comparison:**
+#
+# **Manual vs Automatic Alignment:**
+# - If auto_arima selected parameters close to our manual analysis, it validates the ACF/PACF interpretation
+# - If there's a significant difference, it may indicate:
+#   - Complex patterns not easily visible in ACF/PACF
+#   - The automated search found a better local minimum
+#   - Our manual interpretation may have missed important interactions
+#
+# **Model Complexity vs Performance:**
+# - More parameters don't always mean better forecasts
+# - Overfitting risk increases with complexity
+# - The best model optimally balances fit and simplicity
+#
+# **Recommendation for Production:**
+# - Use the selected model for forecasting
+# - Monitor performance on new data
+# - Consider retraining periodically with updated data
+# - Maintain the comparison framework for future model updates
+
+# %% [markdown]
+# ## 2.3 Model Fitting
 #
 # Now we'll fit the ARIMA model using the optimal parameters found by auto_arima. We'll use the statsmodels ARIMA implementation, which provides:
 #
@@ -834,7 +1368,7 @@ print(f"Max: {residuals.max():.4f}")
 fig, axes = plt.subplots(2, 2, figsize=(16, 12))
 
 # 1. Residuals time series
-axes[0, 0].plot(train_data.index[1:], residuals, color='#1f77b4', linewidth=0.8)
+axes[0, 0].plot(train_data.index[1:], residuals[1:], color='#1f77b4', linewidth=0.8)
 axes[0, 0].axhline(y=0, color='red', linestyle='--', linewidth=1)
 axes[0, 0].set_title('Residuals Over Time', fontsize=12, fontweight='bold')
 axes[0, 0].set_xlabel('Date', fontsize=10)
@@ -976,84 +1510,6 @@ print("  - ACF of residuals shows no significant lags")
 # **Note:** Some deviation from normality is common in real-world data and doesn't necessarily invalidate the model, especially if other diagnostics are good.
 
 # %% [markdown]
-# ## 2.4 In-Sample Performance
-#
-# Before testing on unseen data, let's evaluate how well the model fits the training data (in-sample performance). This gives us a baseline for comparison.
-
-# %%
-# Get in-sample predictions
-fitted_values = fitted_model.fittedvalues
-
-# Calculate in-sample metrics
-from sklearn.metrics import mean_squared_error, mean_absolute_error
-
-def calculate_metrics(actual, predicted):
-    """Calculate evaluation metrics."""
-    mse = mean_squared_error(actual, predicted)
-    rmse = np.sqrt(mse)
-    mae = mean_absolute_error(actual, predicted)
-    
-    # MAPE (avoid division by zero)
-    mask = actual != 0
-    mape = np.mean(np.abs((actual[mask] - predicted[mask]) / actual[mask])) * 100
-    
-    return {
-        'MSE': mse,
-        'RMSE': rmse,
-        'MAE': mae,
-        'MAPE': mape
-    }
-
-in_sample_metrics = calculate_metrics(train_data[d_optimal:], fitted_values)
-
-print("=" * 60)
-print("IN-SAMPLE PERFORMANCE (Training Data)")
-print("=" * 60)
-print(f"MSE:  {in_sample_metrics['MSE']:.2f}")
-print(f"RMSE: {in_sample_metrics['RMSE']:.2f}")
-print(f"MAE:  {in_sample_metrics['MAE']:.2f}")
-print(f"MAPE: {in_sample_metrics['MAPE']:.2f}%")
-
-# Plot in-sample fit
-fig, ax = plt.subplots(figsize=(16, 6))
-
-ax.plot(train_data.index, train_data, label='Actual Data',
-        color='#1f77b4', linewidth=0.8, alpha=0.7)
-ax.plot(fitted_values.index, fitted_values, label='Fitted Values',
-        color='orange', linewidth=1.5, alpha=0.9)
-
-# Highlight system downtime
-ax.axvspan(downtime_start, downtime_end, color='red', alpha=0.1)
-
-# Formatting
-ax.set_title('In-Sample Fit: Actual vs Fitted Values', fontsize=14, fontweight='bold')
-ax.set_xlabel('Date', fontsize=12)
-ax.set_ylabel('Number of Requests', fontsize=12)
-ax.legend(loc='upper left')
-ax.grid(True, alpha=0.3)
-
-plt.tight_layout()
-plt.show()
-
-# %% [markdown]
-# **Figure 7: In-Sample Model Fit**
-#
-# - **Blue line:** Actual training data
-# - **Orange line:** Model fitted values
-# - **Light red shaded area:** Server outage period (August 1-3, 1995)
-#
-# **Interpretation:**
-# - Good fit: Orange line closely follows blue line
-# - Poor fit: Large deviations between actual and fitted values
-# - Note: In-sample performance is typically better than out-of-sample performance
-#
-# **Metrics:**
-# - **MSE (Mean Squared Error):** Average of squared errors (penalizes large errors)
-# - **RMSE (Root Mean Squared Error):** Square root of MSE (same units as data)
-# - **MAE (Mean Absolute Error):** Average absolute error (more robust to outliers)
-# - **MAPE (Mean Absolute Percentage Error):** Average percentage error (scale-independent)
-
-# %% [markdown]
 # ## 2.5 Section 2 Summary and Conclusions
 #
 # ### Model Training Results:
@@ -1073,18 +1529,6 @@ plt.show()
 # - Residual normality: [Based on Jarque-Bera test]
 # - Residual patterns: [Based on visual inspection]
 # - Overall model adequacy: [Adequate/Needs improvement]
-#
-# **In-Sample Performance:**
-# - RMSE: {in_sample_metrics['RMSE']:.2f}
-# - MAE: {in_sample_metrics['MAE']:.2f}
-# - MAPE: {in_sample_metrics['MAPE']:.2f}%
-#
-# ### Suitability Assessment:
-#
-# **Is the model ready for forecasting?**
-# - [Yes/No] - Based on diagnostic tests
-# - [If no, what improvements are needed?]
-# - [If yes, proceed to Section 3]
 #
 # ### Next Steps:
 #
@@ -1244,7 +1688,8 @@ axes[0].legend(loc='upper left')
 axes[0].grid(True, alpha=0.3)
 
 # Plot 2: First week of forecast (zoom in)
-first_week_end = test_start_date + pd.Timedelta(days=7)
+test_tz = test_data.index.tz
+first_week_end = pd.Timestamp(test_start_date).tz_localize(test_tz) + pd.Timedelta(days=7)
 first_week_mask = test_data.index <= first_week_end
 
 axes[1].plot(train_data.index[train_data.index >= (first_week_end - pd.Timedelta(days=7))],
@@ -1392,10 +1837,22 @@ plt.show()
 
 # %%
 # Calculate metrics by time period
+# Ensure timezone compatibility by using the same timezone as the data
+test_tz = test_data.index.tz
+
 periods = {
-    'First Week': (test_start_date, test_start_date + pd.Timedelta(days=7)),
-    'First 2 Weeks': (test_start_date, test_start_date + pd.Timedelta(days=14)),
-    'Full Period': (test_start_date, test_data.index.max())
+    'First Week': (
+        pd.Timestamp(test_start_date).tz_localize(test_tz), 
+        (pd.Timestamp(test_start_date) + pd.Timedelta(days=7)).tz_localize(test_tz)
+    ),
+    'First 2 Weeks': (
+        pd.Timestamp(test_start_date).tz_localize(test_tz), 
+        (pd.Timestamp(test_start_date) + pd.Timedelta(days=14)).tz_localize(test_tz)
+    ),
+    'Full Period': (
+        pd.Timestamp(test_start_date).tz_localize(test_tz), 
+        test_data.index.max()
+    )
 }
 
 print("=" * 60)
