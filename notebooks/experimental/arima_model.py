@@ -117,13 +117,30 @@ def calculate_metrics(actual, predicted):
     --------
     dict : Dictionary containing MSE, RMSE, MAE, and MAPE
     """
-    mse = mean_squared_error(actual, predicted)
+    # Ensure inputs are aligned if they are pandas Series
+    if isinstance(actual, pd.Series) and isinstance(predicted, pd.Series):
+        # Align predicted to actual's index (handling gaps in actual)
+        predicted = predicted.reindex(actual.index)
+    
+    # Remove any NaN values (e.g., from alignment mismatches)
+    if isinstance(actual, pd.Series):
+        valid_mask = ~np.isnan(actual) & ~np.isnan(predicted)
+        actual_clean = actual[valid_mask]
+        predicted_clean = predicted[valid_mask]
+    else:
+        actual_clean = actual
+        predicted_clean = predicted
+
+    mse = mean_squared_error(actual_clean, predicted_clean)
     rmse = np.sqrt(mse)
-    mae = mean_absolute_error(actual, predicted)
+    mae = mean_absolute_error(actual_clean, predicted_clean)
     
     # MAPE (avoid division by zero)
-    mask = actual != 0
-    mape = np.mean(np.abs((actual[mask] - predicted[mask]) / actual[mask])) * 100
+    mask = actual_clean != 0
+    if isinstance(actual_clean, pd.Series):
+        mape = np.mean(np.abs((actual_clean[mask] - predicted_clean[mask]) / actual_clean[mask])) * 100
+    else:
+        mape = np.mean(np.abs((actual_clean[mask] - predicted_clean[mask]) / actual_clean[mask])) * 100
     
     return {
         'MSE': mse,
@@ -609,12 +626,16 @@ plt.show()
 # Define train/test split dates
 # Check if data has timezone and apply it to split dates
 data_tz = df_5m.index.tz
-train_end_date = pd.Timestamp('1995-08-22').tz_localize(data_tz)  # End of training period
-test_start_date = pd.Timestamp('1995-08-23').tz_localize(data_tz)  # Start of test period
+# Use a single split point to ensure continuity
+# Training ends at the end of Aug 22 (so we split at start of Aug 23)
+split_date = pd.Timestamp('1995-08-23').tz_localize(data_tz)
+train_end_date = split_date  # For visualization consistency
 
 # Split the data
-train_data = df_5m[df_5m.index <= train_end_date]['requests']
-test_data = df_5m[df_5m.index >= test_start_date]['requests']
+# Train: Everything strictly before Aug 23 (includes all of Aug 22)
+train_data = df_5m[df_5m.index < split_date]['requests']
+# Test: Everything from Aug 23 onwards
+test_data = df_5m[df_5m.index >= split_date]['requests']
 
 print("=" * 60)
 print("TRAIN/TEST SPLIT")
@@ -1629,24 +1650,6 @@ print(f"RMSE: {out_of_sample_metrics['RMSE']:.2f}")
 print(f"MAE:  {out_of_sample_metrics['MAE']:.2f}")
 print(f"MAPE: {out_of_sample_metrics['MAPE']:.2f}%")
 
-# Compare in-sample vs out-of-sample
-print("\n" + "=" * 60)
-print("PERFORMANCE COMPARISON")
-print("=" * 60)
-print(f"{'Metric':<10} {'In-Sample':<15} {'Out-of-Sample':<15} {'Ratio':<10}")
-print("-" * 60)
-print(f"{'MSE':<10} {in_sample_metrics['MSE']:<15.2f} {out_of_sample_metrics['MSE']:<15.2f} {out_of_sample_metrics['MSE']/in_sample_metrics['MSE']:<10.2f}")
-print(f"{'RMSE':<10} {in_sample_metrics['RMSE']:<15.2f} {out_of_sample_metrics['RMSE']:<15.2f} {out_of_sample_metrics['RMSE']/in_sample_metrics['RMSE']:<10.2f}")
-print(f"{'MAE':<10} {in_sample_metrics['MAE']:<15.2f} {out_of_sample_metrics['MAE']:<15.2f} {out_of_sample_metrics['MAE']/in_sample_metrics['MAE']:<10.2f}")
-print(f"{'MAPE':<10} {in_sample_metrics['MAPE']:<15.2f} {out_of_sample_metrics['MAPE']:<15.2f} {out_of_sample_metrics['MAPE']/in_sample_metrics['MAPE']:<10.2f}")
-
-print("\n" + "=" * 60)
-print("INTERPRETATION")
-print("=" * 60)
-print("Ratio < 1.5: Good generalization (model not overfitting)")
-print("Ratio 1.5-2.0: Moderate generalization (some overfitting)")
-print("Ratio > 2.0: Poor generalization (significant overfitting)")
-
 # %% [markdown]
 # **Performance Metrics Interpretation:**
 #
@@ -1655,16 +1658,6 @@ print("Ratio > 2.0: Poor generalization (significant overfitting)")
 # - **RMSE:** √MSE - same units as the data, easier to interpret
 # - **MAE:** Mean of |actual - predicted| - robust to outliers
 # - **MAPE:** Mean of |(actual - predicted)/actual| × 100 - scale-independent
-#
-# **In-Sample vs Out-of-Sample:**
-# - In-sample performance is typically better (model saw this data during training)
-# - Out-of-sample performance is the true measure of generalization
-# - Large gap between in-sample and out-of-sample indicates overfitting
-#
-# **Benchmark for Success:**
-# - Good models have out-of-sample RMSE close to in-sample RMSE
-# - Ratio < 1.5 indicates good generalization
-# - MAPE < 20% is generally acceptable for many applications
 
 # %% [markdown]
 # ## 3.3 Visualization of Forecasts
@@ -1705,7 +1698,7 @@ axes[0].grid(True, alpha=0.3)
 
 # Plot 2: First week of forecast (zoom in)
 test_tz = test_data.index.tz
-first_week_end = pd.Timestamp(test_start_date).tz_localize(test_tz) + pd.Timedelta(days=7)
+first_week_end = split_date + pd.Timedelta(days=7)
 first_week_mask = test_data.index <= first_week_end
 
 axes[1].plot(train_data.index[train_data.index >= (first_week_end - pd.Timedelta(days=7))],
@@ -1858,15 +1851,15 @@ test_tz = test_data.index.tz
 
 periods = {
     'First Week': (
-        pd.Timestamp(test_start_date).tz_localize(test_tz), 
-        (pd.Timestamp(test_start_date) + pd.Timedelta(days=7)).tz_localize(test_tz)
+        split_date,
+        split_date + pd.Timedelta(days=7)
     ),
     'First 2 Weeks': (
-        pd.Timestamp(test_start_date).tz_localize(test_tz), 
-        (pd.Timestamp(test_start_date) + pd.Timedelta(days=14)).tz_localize(test_tz)
+        split_date,
+        split_date + pd.Timedelta(days=14)
     ),
     'Full Period': (
-        pd.Timestamp(test_start_date).tz_localize(test_tz), 
+        split_date,
         test_data.index.max()
     )
 }
@@ -2054,16 +2047,3 @@ plt.show()
 # ### Final Conclusion:
 #
 # The ARIMA({p}, {d_optimal}, {q}) model [achieved/failed to achieve] acceptable forecasting performance for the NASA server traffic data. The model [is/is not] recommended for production use [with/without] further improvements and monitoring.
-
-# %% [markdown]
-# ---
-#
-# **[END OF NOTEBOOK]**
-#
-# **Next Steps:**
-# - Save the trained model for deployment
-# - Implement the model in the API layer (`api/app.py`)
-# - Add ARIMA forecasts to the dashboard (`app/dashboard.py`)
-# - Compare with other models (Prophet, LSTM, XGBoost)
-# - Implement optimization rules based on forecasts
-# - Prepare final report and presentation materials
