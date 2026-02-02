@@ -517,6 +517,10 @@ plt.show()
 # - The series exhibits properties often associated with non-stationary data
 # - Differencing (d=1) would typically be required to stabilize the mean
 #
+# **Daily Cycle Pattern:**
+#
+# The linear decay in ACF indicates strong local persistence in the traffic data. For 5-minute aggregated data, we observe a pattern that suggests the presence of a **daily cycle**. With 288 intervals per day (24 hours × 12 intervals/hour), this cyclical pattern explains why autocorrelation remains high across many lags. The slow decay is characteristic of processes with strong periodic components that repeat over longer time horizons.
+#
 # **PACF Pattern Analysis:**
 #
 # The PACF plot shows:
@@ -528,7 +532,7 @@ plt.show()
 #
 # **Seasonality Check:**
 #
-# No obvious recurring spikes at regular intervals (e.g., every 12 or 24 lags). The smooth decay suggests that stochastic seasonality is not a dominant feature.
+# While no obvious recurring spikes at regular intervals (e.g., every 12 or 24 lags) are visible, the smooth decay pattern is indicative of underlying daily seasonality in the traffic data. This daily cycle pattern represents systematic variations in web traffic that follow a 24-hour period, likely corresponding to human activity patterns.
 #
 # ---
 #
@@ -659,7 +663,7 @@ plt.show()
 # **Autocorrelation Analysis:**
 # - ACF pattern: Very slow, linear decay over 50+ lags
 # - PACF pattern: Sharp cutoff after Lag 1, with smaller spike at Lag 2
-# - Seasonality detected: No obvious recurring spikes at regular intervals
+# - Seasonality detected: Daily cycle pattern identified from linear ACF decay
 # - Recommended p: 1 or 2 (based on PACF cutoff)
 # - Recommended q: 0 (ACF shows gradual decay, not sharp cutoff)
 #
@@ -675,8 +679,13 @@ plt.show()
 # Yes, ARIMA is suitable because:
 # - The series is stationary (no differencing needed)
 # - Clear autocorrelation structure exists (AR component)
-# - No complex seasonality that would require SARIMA
+# - Daily cycle pattern detected but can be handled with standard ARIMA
 # - Sufficient data points for reliable parameter estimation
+#
+# **Daily Cycle Implications:**
+# - The detected daily cycle pattern suggests systematic traffic variations
+# - Standard ARIMA may capture this pattern through its autoregressive components
+# - For more sophisticated seasonal modeling, SARIMA could be considered
 #
 # ### Next Steps:
 #
@@ -714,6 +723,9 @@ plt.show()
 # - `seasonal`: Whether to include seasonal components
 # - `trace`: Print progress during search
 # - `stepwise`: Use stepwise algorithm for faster search
+#
+# **Note on Seasonality:**
+# In Section 1.4, we identified a daily cycle pattern in the traffic data from the linear decay in the ACF plot. While we've set `seasonal=False` for now to use standard ARIMA, this daily cycle suggests that SARIMA (Seasonal ARIMA) models might be more appropriate for capturing these periodic patterns. For production deployment, seasonal models should be considered as they can better capture the 24-hour cycle in web traffic.
 #
 # **Multi-Window Training:**
 # We'll train ARIMA models on all three time aggregation windows (1m, 5m, 15m) to compare performance across different granularities.
@@ -774,7 +786,7 @@ for window, train_data in train_data_dict.items():
         max_p=5,
         max_q=5,
         d=d,
-        seasonal=False,  # We'll handle seasonality manually if needed
+        seasonal=False,  # We'll handle seasonality manually if needed. Note: Daily cycle detected in ACF analysis suggests SARIMA might be more appropriate.
         trace=True,
         stepwise=True,
         suppress_warnings=True,
@@ -1648,6 +1660,11 @@ print("  - ACF of residuals shows no significant lags")
 # - Each window has its own optimal (p,d,q) parameters
 # - Comparison table shows how parameters vary with time granularity
 #
+# **Model Limitations:**
+# - Standard ARIMA models may not fully capture the daily cycle pattern identified in the ACF analysis
+# - The linear decay in ACF suggests strong persistence that might be better modeled with SARIMA
+# - For production deployment, seasonal models should be considered to properly capture the 24-hour traffic cycle
+#
 # **Parameter Selection Across Windows:**
 
 # %%
@@ -2345,10 +2362,11 @@ for window in ['1m', '5m', '15m']:
 # - Practical utility for autoscaling decisions
 #
 # **Model Improvements Needed:**
-# 1. **Residual Analysis:** Address autocorrelation in residuals
-# 2. **Feature Engineering:** Add exogenous variables (time-of-day, day-of-week)
-# 3. **Ensemble Methods:** Combine multiple models for better performance
-# 4. **Advanced Models:** Evaluate Prophet, LSTM, or XGBoost for comparison
+# 1. **Seasonal Modeling:** The daily cycle pattern detected in ACF analysis suggests SARIMA models would be more appropriate than standard ARIMA
+# 2. **Residual Analysis:** Address autocorrelation in residuals
+# 3. **Feature Engineering:** Add exogenous variables (time-of-day, day-of-week)
+# 4. **Ensemble Methods:** Combine multiple models for better performance
+# 5. **Advanced Models:** Evaluate Prophet, LSTM, or XGBoost for comparison
 #
 # **Evaluation Recommendations:**
 # 1. **Cross-Validation:** Implement time series cross-validation for robust assessment
