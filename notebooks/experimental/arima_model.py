@@ -83,7 +83,6 @@ import warnings
 from statsmodels.tsa.arima.model import ARIMA
 from statsmodels.tsa.stattools import adfuller
 from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
-from statsmodels.tsa.statespace.tools import crosstab
 
 # Auto-ARIMA for parameter selection
 from pmdarima import auto_arima
@@ -132,165 +131,12 @@ if data_5m_path.exists():
 else:
     raise FileNotFoundError(f"Data file not found: {data_5m_path}")
 
-# %% [markdown]
-# ## 1.3 Data Exploration and Summary Statistics
-#
-# Before applying ARIMA, let's understand our data:
-# - What columns are available?
-# - What is the distribution of requests?
-# - Are there any missing values or anomalies?
-# - How does the traffic vary over time?
-
-# %%
-# Display basic information about the dataset
-print("=" * 60)
-print("DATASET OVERVIEW")
-print("=" * 60)
-print(f"\nShape: {df_5m.shape[0]} rows × {df_5m.shape[1]} columns")
-print(f"\nColumns: {list(df_5m.columns)}")
-print(f"\nIndex type: {type(df_5m.index)}")
-print(f"Index frequency: {pd.infer_freq(df_5m.index)}")
-
-# Display first few rows
-print("\n" + "=" * 60)
-print("FIRST 5 ROWS")
-print("=" * 60)
-display(df_5m.head())
-
-# Display last few rows
-print("\n" + "=" * 60)
-print("LAST 5 ROWS")
-print("=" * 60)
-display(df_5m.tail())
-
-# %% [markdown]
-# ### Summary Statistics
-#
-# Let's examine the statistical properties of our data, particularly the `requests` column which is our target variable for forecasting.
-
-# %%
-# Summary statistics
-print("=" * 60)
-print("SUMMARY STATISTICS")
-print("=" * 60)
-display(df_5m.describe())
-
-# Focus on requests column
-print("\n" + "=" * 60)
-print("REQUESTS COLUMN STATISTICS")
-print("=" * 60)
-print(f"Mean requests per 5 minutes: {df_5m['requests'].mean():.2f}")
-print(f"Median requests per 5 minutes: {df_5m['requests'].median():.2f}")
-print(f"Std deviation: {df_5m['requests'].std():.2f}")
-print(f"Min requests: {df_5m['requests'].min()}")
-print(f"Max requests: {df_5m['requests'].max()}")
-print(f"Total requests: {df_5m['requests'].sum():,.0f}")
-
-# Check for missing values
-print("\n" + "=" * 60)
-print("MISSING VALUES")
-print("=" * 60)
-missing_values = df_5m.isnull().sum()
-print(missing_values)
-if missing_values.sum() > 0:
-    print(f"\n⚠️  Warning: {missing_values.sum()} missing values found")
-else:
-    print("\n✓ No missing values found")
-
-# %% [markdown]
-# ### Visualizing the Time Series
-#
-# Let's plot the request count over time to identify:
-# - **Trends:** Long-term increase or decrease
-# - **Seasonality:** Repeating patterns (daily, weekly)
-# - **Anomalies:** Unusual spikes or drops
-# - **Data gaps:** The known server outage from Aug 1-3, 1995
-
-# %%
-# Plot the entire time series
-fig, ax = plt.subplots(figsize=(16, 6))
-
-df_5m['requests'].plot(ax=ax, linewidth=0.8, alpha=0.8, color='#1f77b4')
-
-# Highlight system downtime period (Aug 1-3, 1995)
+# Define system downtime period (Aug 1-3, 1995 due to storm)
 downtime_start = pd.Timestamp('1995-08-01')
 downtime_end = pd.Timestamp('1995-08-03')
-ax.axvspan(downtime_start, downtime_end, color='red', alpha=0.2, label='Server Outage (Storm)')
-
-# Formatting
-ax.set_title('HTTP Requests Over Time (5-minute aggregation)', fontsize=14, fontweight='bold')
-ax.set_xlabel('Date', fontsize=12)
-ax.set_ylabel('Number of Requests', fontsize=12)
-ax.legend(loc='upper left')
-ax.grid(True, alpha=0.3)
-
-plt.tight_layout()
-plt.show()
 
 # %% [markdown]
-# **Figure 1: HTTP Requests Over Time**
-#
-# This plot shows the request count across the entire time period (July-August 1995). Key observations:
-#
-# - **Red shaded area:** Indicates the server outage from August 1-3, 1995 due to a storm
-# - **Variability:** Traffic shows significant fluctuations with both peaks and troughs
-# - **Potential patterns:** May show daily/weekly seasonality (needs further investigation)
-# - **Overall trend:** Will be assessed more formally with statistical tests
-
-# %% [markdown]
-# ### Daily and Weekly Patterns
-#
-# Let's examine whether there are consistent daily or weekly patterns in the traffic, which would inform our ARIMA model's seasonal component (if using SARIMA).
-
-# %%
-# Extract time-based features for pattern analysis
-df_5m_copy = df_5m.copy()
-df_5m_copy['hour'] = df_5m_copy.index.hour
-df_5m_copy['day_of_week'] = df_5m_copy.index.dayofweek
-df_5m_copy['day_name'] = df_5m_copy.index.day_name()
-
-# Daily pattern (hourly average)
-fig, axes = plt.subplots(1, 2, figsize=(16, 5))
-
-# Plot 1: Average requests by hour of day
-hourly_avg = df_5m_copy.groupby('hour')['requests'].mean()
-axes[0].bar(hourly_avg.index, hourly_avg.values, color='steelblue', edgecolor='black', alpha=0.7)
-axes[0].set_title('Average Requests by Hour of Day', fontsize=12, fontweight='bold')
-axes[0].set_xlabel('Hour (0-23)', fontsize=10)
-axes[0].set_ylabel('Average Requests', fontsize=10)
-axes[0].set_xticks(range(0, 24, 2))
-axes[0].grid(True, alpha=0.3, axis='y')
-
-# Plot 2: Average requests by day of week
-day_order = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
-daily_avg = df_5m_copy.groupby('day_name')['requests'].mean().reindex(day_order)
-axes[1].bar(daily_avg.index, daily_avg.values, color='coral', edgecolor='black', alpha=0.7)
-axes[1].set_title('Average Requests by Day of Week', fontsize=12, fontweight='bold')
-axes[1].set_xlabel('Day of Week', fontsize=10)
-axes[1].set_ylabel('Average Requests', fontsize=10)
-axes[1].tick_params(axis='x', rotation=45)
-axes[1].grid(True, alpha=0.3, axis='y')
-
-plt.tight_layout()
-plt.show()
-
-# %% [markdown]
-# **Figure 2: Daily and Weekly Traffic Patterns**
-#
-# **Left Panel - Hourly Pattern:**
-# - Shows the average request count for each hour of the day
-# - Peak hours indicate high-traffic periods
-# - Low hours indicate maintenance or off-peak periods
-# - This pattern is crucial for understanding daily seasonality
-#
-# **Right Panel - Weekly Pattern:**
-# - Shows the average request count for each day of the week
-# - Weekdays vs weekends comparison
-# - Helps identify weekly seasonality
-# - May influence whether we need a seasonal ARIMA (SARIMA) model
-
-# %% [markdown]
-# ## 1.4 Stationarity Assessment
+# ## 1.3 Stationarity Assessment
 #
 # **Why Stationarity Matters for ARIMA:**
 #
@@ -306,7 +152,7 @@ plt.show()
 # 2. **Augmented Dickey-Fuller (ADF) test:** Statistical test for unit root
 
 # %% [markdown]
-# ### 1.4.1 Visual Inspection - Rolling Statistics
+# ### 1.3.1 Visual Inspection - Rolling Statistics
 #
 # We'll plot the rolling mean and standard deviation to visually assess stationarity. If these statistics remain relatively constant over time, the series is likely stationary.
 
@@ -362,7 +208,7 @@ plt.show()
 # The visual inspection provides an initial assessment, but we need a statistical test for confirmation.
 
 # %% [markdown]
-# ### 1.4.2 Augmented Dickey-Fuller (ADF) Test
+# ### 1.3.2 Augmented Dickey-Fuller (ADF) Test
 #
 # The **ADF test** is a formal statistical test for stationarity. It tests the **null hypothesis** that a unit root is present (i.e., the time series is non-stationary).
 #
@@ -439,7 +285,7 @@ adf_results = perform_adf_test(df_5m['requests'], "Augmented Dickey-Fuller Test 
 # - If ADF statistic ≥ critical value (or p-value ≥ 0.05) → Non-stationary
 
 # %% [markdown]
-# ### 1.4.3 Differencing (if needed)
+# ### 1.3.3 Differencing (if needed)
 #
 # If the ADF test indicates the series is non-stationary, we need to apply **differencing**. Differencing computes the difference between consecutive observations:
 #
