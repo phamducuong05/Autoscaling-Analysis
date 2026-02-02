@@ -648,7 +648,7 @@ plt.show()
 # ### Key Findings from Pre-train Analysis:
 #
 # **Data Characteristics:**
-# - Data shape: 17,856 observations across 20 features
+# - Data shape: 17,568 observations across 20 features
 # - Date range: July 2, 1995 - August 31, 1995
 # - System downtime: August 1-3, 1995 (due to storm, contains mock data)
 # - Time resolution: 5-minute intervals
@@ -668,9 +668,9 @@ plt.show()
 # - Recommended q: 0 (ACF shows gradual decay, not sharp cutoff)
 #
 # **Data Preparation:**
-# - Train set: July 2 - August 22, 1995 (15,264 observations)
+# - Train set: July 2 - August 22, 1995 (14,976 observations)
 # - Test set: August 23 - August 31, 1995 (2,592 observations)
-# - Train/test split: 85.5% / 14.5%
+# - Train/test split: 85.2% / 14.8%
 # - Data ready for ARIMA training: Yes
 #
 # ### Suitability Assessment:
@@ -1227,10 +1227,10 @@ print(f"{'Criterion':<20} {'Manual A':<15} {'Manual B':<15} {'Auto':<15}")
 print("-" * 70)
 
 # AIC comparison
-print(f"{'AIC':<20} {fitted_manual_a.aic:<15.2f} {fitted_manual_b.aic:<15.2f} {get_model_aic(auto_model):<15.2f}")
+print(f"{'AIC':<20} {fitted_manual_a.aic:<15.2f} {fitted_manual_b.aic:<15.2f} {get_model_aic(auto_model_5m):<15.2f}")
 
 # BIC comparison
-print(f"{'BIC':<20} {fitted_manual_a.bic:<15.2f} {fitted_manual_b.bic:<15.2f} {get_model_aic(auto_model) if hasattr(auto_model, 'bic') and callable(auto_model.bic) else auto_model.bic:<15.2f}")
+print(f"{'BIC':<20} {fitted_manual_a.bic:<15.2f} {fitted_manual_b.bic:<15.2f} {get_model_aic(auto_model_5m) if hasattr(auto_model_5m, 'bic') and callable(auto_model_5m.bic) else auto_model_5m.bic:<15.2f}")
 
 # RMSE comparison
 print(f"{'RMSE (In-Sample)':<20} {metrics_manual_a['RMSE']:<15.2f} {metrics_manual_b['RMSE']:<15.2f} {metrics_auto['RMSE']:<15.2f}")
@@ -1244,7 +1244,7 @@ print(f"{'Ljung-Box OK':<20} {lb_status_a:<15} {lb_status_b:<15} {lb_status_auto
 # Complexity (number of parameters)
 complexity_a = 1  # AR(1)
 complexity_b = 2  # AR(2)
-complexity_auto = p + q  # AR(p) + MA(q)
+complexity_auto = p_5m + q_5m  # AR(p) + MA(q)
 print(f"{'Parameters':<20} {complexity_a:<15} {complexity_b:<15} {complexity_auto:<15}")
 
 print("\n" + "=" * 70)

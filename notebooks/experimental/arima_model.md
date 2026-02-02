@@ -187,7 +187,7 @@ downtime_end = pd.Timestamp('1995-08-03').tz_localize(data_tz)
     Cleaned data directory: D:\Autoscaling-Analysis\data\cleaned
     
     ✓ Successfully loaded data from: D:\Autoscaling-Analysis\data\cleaned\data_5m.csv
-    ✓ Data shape: (17568, 19)
+    ✓ Data shape: (17568, 20)
     ✓ Date range: 1995-07-02 00:00:00-04:00 to 1995-08-31 23:55:00-04:00
     
 
@@ -336,7 +336,7 @@ adf_results = perform_adf_test(df_5m['requests_target'], "Augmented Dickey-Fulle
     ============================================================
     Augmented Dickey-Fuller Test - Original Data
     ============================================================
-    ADF Statistic: -11.395905
+    ADF Statistic: -11.520066
     p-value: 0.000000
     Critical Values:
        1%: -3.430723
@@ -700,7 +700,7 @@ This split ensures our model is evaluated on truly unseen future data, simulatin
 ### Key Findings from Pre-train Analysis:
 
 **Data Characteristics:**
-- Data shape: 17,856 observations across 20 features
+- Data shape: 17,568 observations across 20 features
 - Date range: July 2, 1995 - August 31, 1995
 - System downtime: August 1-3, 1995 (due to storm, contains mock data)
 - Time resolution: 5-minute intervals
@@ -720,9 +720,9 @@ This split ensures our model is evaluated on truly unseen future data, simulatin
 - Recommended q: 0 (ACF shows gradual decay, not sharp cutoff)
 
 **Data Preparation:**
-- Train set: July 2 - August 22, 1995 (15,264 observations)
+- Train set: July 2 - August 22, 1995 (14,976 observations)
 - Test set: August 23 - August 31, 1995 (2,592 observations)
-- Train/test split: 85.5% / 14.5%
+- Train/test split: 85.2% / 14.8%
 - Data ready for ARIMA training: Yes
 
 ### Suitability Assessment:
@@ -890,120 +890,112 @@ for window, train_data in train_data_dict.items():
     ============================================================
     Training samples: 74880
     Performing stepwise search to minimize aic
-     ARIMA(0,0,0)(0,0,0)[0]             : AIC=801424.906, Time=0.33 sec
-     ARIMA(1,0,0)(0,0,0)[0]             : AIC=636330.018, Time=0.37 sec
-     ARIMA(0,0,1)(0,0,0)[0]             : AIC=737344.985, Time=2.14 sec
-     ARIMA(2,0,0)(0,0,0)[0]             : AIC=625480.886, Time=0.81 sec
-     ARIMA(3,0,0)(0,0,0)[0]             : AIC=621231.687, Time=1.18 sec
-     ARIMA(4,0,0)(0,0,0)[0]             : AIC=618426.336, Time=1.88 sec
-     ARIMA(5,0,0)(0,0,0)[0]             : AIC=inf, Time=2.88 sec
-     ARIMA(4,0,1)(0,0,0)[0]             : AIC=611810.311, Time=16.37 sec
-     ARIMA(3,0,1)(0,0,0)[0]             : AIC=611864.131, Time=11.25 sec
-     ARIMA(5,0,1)(0,0,0)[0]             : AIC=611715.772, Time=22.00 sec
-     ARIMA(5,0,2)(0,0,0)[0]             : AIC=611814.295, Time=21.97 sec
-     ARIMA(4,0,2)(0,0,0)[0]             : AIC=611867.694, Time=17.78 sec
-     ARIMA(5,0,1)(0,0,0)[0] intercept   : AIC=611715.251, Time=66.81 sec
-     ARIMA(4,0,1)(0,0,0)[0] intercept   : AIC=611759.721, Time=54.00 sec
-     ARIMA(5,0,0)(0,0,0)[0] intercept   : AIC=616242.431, Time=3.91 sec
-     ARIMA(5,0,2)(0,0,0)[0] intercept   : AIC=611763.693, Time=54.22 sec
-     ARIMA(4,0,0)(0,0,0)[0] intercept   : AIC=617451.960, Time=2.95 sec
-     ARIMA(4,0,2)(0,0,0)[0] intercept   : AIC=611812.609, Time=41.83 sec
+     ARIMA(0,0,0)(0,0,0)[0]             : AIC=797994.496, Time=0.31 sec
+     ARIMA(1,0,0)(0,0,0)[0]             : AIC=631148.954, Time=0.39 sec
+     ARIMA(0,0,1)(0,0,0)[0]             : AIC=733509.970, Time=2.23 sec
+     ARIMA(2,0,0)(0,0,0)[0]             : AIC=619963.734, Time=0.85 sec
+     ARIMA(3,0,0)(0,0,0)[0]             : AIC=615482.344, Time=1.12 sec
+     ARIMA(4,0,0)(0,0,0)[0]             : AIC=612708.859, Time=1.42 sec
+     ARIMA(5,0,0)(0,0,0)[0]             : AIC=inf, Time=1.69 sec
+     ARIMA(4,0,1)(0,0,0)[0]             : AIC=605803.503, Time=14.44 sec
+     ARIMA(3,0,1)(0,0,0)[0]             : AIC=605876.035, Time=11.71 sec
+     ARIMA(5,0,1)(0,0,0)[0]             : AIC=605722.031, Time=34.97 sec
+     ARIMA(5,0,2)(0,0,0)[0]             : AIC=605806.884, Time=38.30 sec
+     ARIMA(4,0,2)(0,0,0)[0]             : AIC=605879.588, Time=27.00 sec
+     ARIMA(5,0,1)(0,0,0)[0] intercept   : AIC=605677.822, Time=83.54 sec
+     ARIMA(4,0,1)(0,0,0)[0] intercept   : AIC=605756.205, Time=38.33 sec
+     ARIMA(5,0,0)(0,0,0)[0] intercept   : AIC=610436.190, Time=3.29 sec
+     ARIMA(5,0,2)(0,0,0)[0] intercept   : AIC=605759.092, Time=50.13 sec
+     ARIMA(4,0,0)(0,0,0)[0] intercept   : AIC=611668.641, Time=2.59 sec
+     ARIMA(4,0,2)(0,0,0)[0] intercept   : AIC=605827.185, Time=32.58 sec
     
     Best model:  ARIMA(5,0,1)(0,0,0)[0] intercept
-    Total fit time: 322.704 seconds
+    Total fit time: 344.917 seconds
     
     ============================================================
     OPTIMAL PARAMETERS FOR 1m WINDOW
     ============================================================
     ARIMA(5, 0, 1)
-    AIC: 611715.25
-    BIC: 611789.04
+    AIC: 605677.82
+    BIC: 605751.61
     
     ============================================================
     Time Window: 5m
     ============================================================
     Training samples: 14976
     Performing stepwise search to minimize aic
-     ARIMA(0,0,0)(0,0,0)[0]             : AIC=207670.827, Time=0.09 sec
-     ARIMA(1,0,0)(0,0,0)[0]             : AIC=164232.483, Time=0.11 sec
-     ARIMA(0,0,1)(0,0,0)[0]             : AIC=192554.623, Time=0.72 sec
-     ARIMA(2,0,0)(0,0,0)[0]             : AIC=162443.722, Time=0.22 sec
-     ARIMA(3,0,0)(0,0,0)[0]             : AIC=inf, Time=0.29 sec
-     ARIMA(2,0,1)(0,0,0)[0]             : AIC=160584.557, Time=1.31 sec
-     ARIMA(1,0,1)(0,0,0)[0]             : AIC=160966.482, Time=1.33 sec
-     ARIMA(3,0,1)(0,0,0)[0]             : AIC=160584.535, Time=3.17 sec
-     ARIMA(4,0,1)(0,0,0)[0]             : AIC=160583.679, Time=3.39 sec
-     ARIMA(4,0,0)(0,0,0)[0]             : AIC=inf, Time=0.33 sec
-     ARIMA(5,0,1)(0,0,0)[0]             : AIC=160585.553, Time=4.69 sec
-     ARIMA(4,0,2)(0,0,0)[0]             : AIC=160586.003, Time=2.16 sec
-     ARIMA(3,0,2)(0,0,0)[0]             : AIC=160588.322, Time=1.25 sec
-     ARIMA(5,0,0)(0,0,0)[0]             : AIC=inf, Time=0.54 sec
-     ARIMA(5,0,2)(0,0,0)[0]             : AIC=160587.668, Time=3.74 sec
-     ARIMA(4,0,1)(0,0,0)[0] intercept   : AIC=160538.031, Time=8.74 sec
-     ARIMA(3,0,1)(0,0,0)[0] intercept   : AIC=160539.699, Time=6.96 sec
-     ARIMA(4,0,0)(0,0,0)[0] intercept   : AIC=161004.793, Time=0.59 sec
-     ARIMA(5,0,1)(0,0,0)[0] intercept   : AIC=160540.065, Time=11.09 sec
-     ARIMA(4,0,2)(0,0,0)[0] intercept   : AIC=160543.362, Time=6.70 sec
-     ARIMA(3,0,0)(0,0,0)[0] intercept   : AIC=161449.284, Time=0.47 sec
-     ARIMA(3,0,2)(0,0,0)[0] intercept   : AIC=160544.158, Time=6.18 sec
-     ARIMA(5,0,0)(0,0,0)[0] intercept   : AIC=160818.560, Time=0.90 sec
-     ARIMA(5,0,2)(0,0,0)[0] intercept   : AIC=160541.977, Time=10.93 sec
+     ARIMA(0,0,0)(0,0,0)[0]             : AIC=206972.735, Time=0.06 sec
+     ARIMA(1,0,0)(0,0,0)[0]             : AIC=162968.109, Time=0.08 sec
+     ARIMA(0,0,1)(0,0,0)[0]             : AIC=191755.147, Time=0.52 sec
+     ARIMA(2,0,0)(0,0,0)[0]             : AIC=161089.675, Time=0.17 sec
+     ARIMA(3,0,0)(0,0,0)[0]             : AIC=inf, Time=0.22 sec
+     ARIMA(2,0,1)(0,0,0)[0]             : AIC=159131.820, Time=0.76 sec
+     ARIMA(1,0,1)(0,0,0)[0]             : AIC=159514.830, Time=0.96 sec
+     ARIMA(3,0,1)(0,0,0)[0]             : AIC=159133.135, Time=2.47 sec
+     ARIMA(2,0,2)(0,0,0)[0]             : AIC=159133.211, Time=2.22 sec
+     ARIMA(1,0,2)(0,0,0)[0]             : AIC=159150.456, Time=0.72 sec
+     ARIMA(3,0,2)(0,0,0)[0]             : AIC=159135.816, Time=1.17 sec
+     ARIMA(2,0,1)(0,0,0)[0] intercept   : AIC=159089.082, Time=3.53 sec
+     ARIMA(1,0,1)(0,0,0)[0] intercept   : AIC=159446.381, Time=2.35 sec
+     ARIMA(2,0,0)(0,0,0)[0] intercept   : AIC=160806.618, Time=0.34 sec
+     ARIMA(3,0,1)(0,0,0)[0] intercept   : AIC=159089.973, Time=6.21 sec
+     ARIMA(2,0,2)(0,0,0)[0] intercept   : AIC=159090.114, Time=8.30 sec
+     ARIMA(1,0,0)(0,0,0)[0] intercept   : AIC=162404.803, Time=0.27 sec
+     ARIMA(1,0,2)(0,0,0)[0] intercept   : AIC=159103.891, Time=7.35 sec
+     ARIMA(3,0,0)(0,0,0)[0] intercept   : AIC=160063.507, Time=0.95 sec
+     ARIMA(3,0,2)(0,0,0)[0] intercept   : AIC=159093.081, Time=9.66 sec
     
-    Best model:  ARIMA(4,0,1)(0,0,0)[0] intercept
-    Total fit time: 75.918 seconds
+    Best model:  ARIMA(2,0,1)(0,0,0)[0] intercept
+    Total fit time: 48.316 seconds
     
     ============================================================
     OPTIMAL PARAMETERS FOR 5m WINDOW
     ============================================================
-    ARIMA(4, 0, 1)
-    AIC: 160538.03
-    BIC: 160591.33
+    ARIMA(2, 0, 1)
+    AIC: 159089.08
+    BIC: 159127.15
     
     ============================================================
     Time Window: 15m
     ============================================================
     Training samples: 4992
     Performing stepwise search to minimize aic
-     ARIMA(0,0,0)(0,0,0)[0]             : AIC=80085.169, Time=0.02 sec
-     ARIMA(1,0,0)(0,0,0)[0]             : AIC=63542.597, Time=0.05 sec
-     ARIMA(0,0,1)(0,0,0)[0]             : AIC=74679.146, Time=0.24 sec
-     ARIMA(2,0,0)(0,0,0)[0]             : AIC=63153.534, Time=0.04 sec
-     ARIMA(3,0,0)(0,0,0)[0]             : AIC=inf, Time=0.09 sec
-     ARIMA(2,0,1)(0,0,0)[0]             : AIC=63032.772, Time=0.46 sec
-     ARIMA(1,0,1)(0,0,0)[0]             : AIC=63039.731, Time=0.22 sec
-     ARIMA(3,0,1)(0,0,0)[0]             : AIC=63023.182, Time=0.53 sec
-     ARIMA(4,0,1)(0,0,0)[0]             : AIC=63024.675, Time=0.42 sec
-     ARIMA(3,0,2)(0,0,0)[0]             : AIC=62995.433, Time=1.03 sec
-     ARIMA(2,0,2)(0,0,0)[0]             : AIC=63028.163, Time=0.18 sec
-     ARIMA(4,0,2)(0,0,0)[0]             : AIC=63025.957, Time=0.42 sec
-     ARIMA(3,0,3)(0,0,0)[0]             : AIC=62996.845, Time=1.68 sec
-     ARIMA(2,0,3)(0,0,0)[0]             : AIC=62994.734, Time=1.28 sec
-     ARIMA(1,0,3)(0,0,0)[0]             : AIC=63022.606, Time=0.19 sec
-     ARIMA(2,0,4)(0,0,0)[0]             : AIC=62996.617, Time=1.97 sec
-     ARIMA(1,0,2)(0,0,0)[0]             : AIC=63030.218, Time=0.33 sec
-     ARIMA(1,0,4)(0,0,0)[0]             : AIC=63018.442, Time=0.22 sec
-     ARIMA(3,0,4)(0,0,0)[0]             : AIC=62997.485, Time=1.94 sec
-     ARIMA(2,0,3)(0,0,0)[0] intercept   : AIC=62982.385, Time=1.23 sec
-     ARIMA(1,0,3)(0,0,0)[0] intercept   : AIC=62973.788, Time=1.64 sec
-     ARIMA(0,0,3)(0,0,0)[0] intercept   : AIC=66171.389, Time=1.31 sec
-     ARIMA(1,0,2)(0,0,0)[0] intercept   : AIC=62984.669, Time=1.17 sec
-     ARIMA(1,0,4)(0,0,0)[0] intercept   : AIC=62966.768, Time=2.05 sec
-     ARIMA(0,0,4)(0,0,0)[0] intercept   : AIC=65360.698, Time=1.52 sec
-     ARIMA(2,0,4)(0,0,0)[0] intercept   : AIC=62971.735, Time=1.76 sec
-     ARIMA(1,0,5)(0,0,0)[0] intercept   : AIC=62964.317, Time=2.63 sec
-     ARIMA(0,0,5)(0,0,0)[0] intercept   : AIC=64954.116, Time=2.34 sec
-     ARIMA(2,0,5)(0,0,0)[0] intercept   : AIC=62970.536, Time=2.15 sec
-     ARIMA(1,0,5)(0,0,0)[0]             : AIC=63017.830, Time=0.30 sec
+     ARIMA(0,0,0)(0,0,0)[0]             : AIC=79863.482, Time=0.04 sec
+     ARIMA(1,0,0)(0,0,0)[0]             : AIC=63035.757, Time=0.05 sec
+     ARIMA(0,0,1)(0,0,0)[0]             : AIC=74425.569, Time=0.43 sec
+     ARIMA(2,0,0)(0,0,0)[0]             : AIC=inf, Time=0.08 sec
+     ARIMA(1,0,1)(0,0,0)[0]             : AIC=62476.778, Time=0.42 sec
+     ARIMA(2,0,1)(0,0,0)[0]             : AIC=62467.580, Time=0.90 sec
+     ARIMA(3,0,1)(0,0,0)[0]             : AIC=62459.461, Time=1.48 sec
+     ARIMA(3,0,0)(0,0,0)[0]             : AIC=inf, Time=0.16 sec
+     ARIMA(4,0,1)(0,0,0)[0]             : AIC=62458.894, Time=1.49 sec
+     ARIMA(4,0,0)(0,0,0)[0]             : AIC=inf, Time=0.19 sec
+     ARIMA(5,0,1)(0,0,0)[0]             : AIC=62460.821, Time=0.54 sec
+     ARIMA(4,0,2)(0,0,0)[0]             : AIC=62415.567, Time=3.10 sec
+     ARIMA(3,0,2)(0,0,0)[0]             : AIC=62413.625, Time=1.74 sec
+     ARIMA(2,0,2)(0,0,0)[0]             : AIC=62463.946, Time=1.20 sec
+     ARIMA(3,0,3)(0,0,0)[0]             : AIC=62464.593, Time=2.19 sec
+     ARIMA(2,0,3)(0,0,0)[0]             : AIC=62415.962, Time=2.55 sec
+     ARIMA(4,0,3)(0,0,0)[0]             : AIC=62419.390, Time=3.89 sec
+     ARIMA(3,0,2)(0,0,0)[0] intercept   : AIC=62299.724, Time=5.88 sec
+     ARIMA(2,0,2)(0,0,0)[0] intercept   : AIC=62419.936, Time=1.76 sec
+     ARIMA(3,0,1)(0,0,0)[0] intercept   : AIC=62413.796, Time=4.30 sec
+     ARIMA(4,0,2)(0,0,0)[0] intercept   : AIC=62414.821, Time=3.40 sec
+     ARIMA(3,0,3)(0,0,0)[0] intercept   : AIC=62419.107, Time=4.86 sec
+     ARIMA(2,0,1)(0,0,0)[0] intercept   : AIC=62422.832, Time=2.30 sec
+     ARIMA(2,0,3)(0,0,0)[0] intercept   : AIC=62422.911, Time=2.99 sec
+     ARIMA(4,0,1)(0,0,0)[0] intercept   : AIC=62413.043, Time=2.08 sec
+     ARIMA(4,0,3)(0,0,0)[0] intercept   : AIC=62406.584, Time=6.74 sec
     
-    Best model:  ARIMA(1,0,5)(0,0,0)[0] intercept
-    Total fit time: 29.428 seconds
+    Best model:  ARIMA(3,0,2)(0,0,0)[0] intercept
+    Total fit time: 54.766 seconds
     
     ============================================================
     OPTIMAL PARAMETERS FOR 15m WINDOW
     ============================================================
-    ARIMA(1, 0, 5)
-    AIC: 62964.32
-    BIC: 63016.44
+    ARIMA(3, 0, 2)
+    AIC: 62299.72
+    BIC: 62345.33
     
 
 **Auto-ARIMA Results:**
@@ -1085,14 +1077,14 @@ print(f"Log Likelihood: {fitted_manual_b.llf:.2f}")
     ============================================================
     
     --- Manual Model A: ARIMA(1, 0, 0) ---
-    AIC: 163708.37
-    BIC: 163731.21
-    Log Likelihood: -81851.18
+    AIC: 162404.80
+    BIC: 162427.64
+    Log Likelihood: -81199.40
     
     --- Manual Model B: ARIMA(2, 0, 0) ---
-    AIC: 162176.21
-    BIC: 162206.67
-    Log Likelihood: -81084.11
+    AIC: 160806.62
+    BIC: 160837.07
+    Log Likelihood: -80399.31
     
 
 ### 2.2.2 Automatic Parameter Selection (auto_arima)
@@ -1119,9 +1111,9 @@ print(f"BIC: {auto_model_5m.bic():.2f}")
     ============================================================
     AUTOMATIC PARAMETER SELECTION - RESULTS (5m Window)
     ============================================================
-    Optimal Model: ARIMA(4, 0, 1)
-    AIC: 160538.03
-    BIC: 160591.33
+    Optimal Model: ARIMA(2, 0, 1)
+    AIC: 159089.08
+    BIC: 159127.15
     
 
 ### 2.2.3 Comparison Summary
@@ -1178,9 +1170,9 @@ print("\n• Best model has ΔAIC = 0.0 (reference point)")
     ======================================================================
     Model                     Parameters      AIC          BIC          ΔAIC      
     ----------------------------------------------------------------------
-    Manual A (ARIMA 1,0,0)    (1, 0, 0)       163708.37    163731.21    3170.34   
-    Manual B (ARIMA 2,0,0)    (2, 0, 0)       162176.21    162206.67    1638.18   
-    Auto (ARIMA 4,0,1)        (4, 0, 1)       160538.03    160538.03    0.00      
+    Manual A (ARIMA 1,0,0)    (1, 0, 0)       162404.80    162427.64    3315.72   
+    Manual B (ARIMA 2,0,0)    (2, 0, 0)       160806.62    160837.07    1717.54   
+    Auto (ARIMA 2,0,1)        (2, 0, 1)       159089.08    159089.08    0.00      
     
     ======================================================================
     INTERPRETATION
@@ -1247,33 +1239,32 @@ print(auto_model.summary().tables[1])
     ==============================================================================
                      coef    std err          z      P>|z|      [0.025      0.975]
     ------------------------------------------------------------------------------
-    const        209.0128      5.545     37.695      0.000     198.145     219.880
-    ar.L1          0.9042      0.002    398.592      0.000       0.900       0.909
-    sigma2      3271.6561     17.537    186.555      0.000    3237.284    3306.028
+    const        207.3522      5.141     40.336      0.000     197.277     217.428
+    ar.L1          0.9003      0.004    249.960      0.000       0.893       0.907
+    sigma2      2998.9254     21.649    138.526      0.000    2956.495    3041.356
     ==============================================================================
     
     --- Manual Model B: ARIMA(2, 0, 0) ---
     ==============================================================================
                      coef    std err          z      P>|z|      [0.025      0.975]
     ------------------------------------------------------------------------------
-    const        209.0128      7.686     27.195      0.000     193.949     224.076
-    ar.L1          0.6221      0.004    160.642      0.000       0.615       0.630
-    ar.L2          0.3120      0.004     82.699      0.000       0.305       0.319
-    sigma2      2953.2464     15.882    185.943      0.000    2922.117    2984.375
+    const        207.3522      7.195     28.819      0.000     193.251     221.454
+    ar.L1          0.6137      0.005    119.294      0.000       0.604       0.624
+    ar.L2          0.3183      0.005     64.235      0.000       0.309       0.328
+    sigma2      2695.1472     18.896    142.629      0.000    2658.111    2732.183
     ==============================================================================
     
-    --- Auto Model: ARIMA(1, 0, 5) ---
+    --- Auto Model: ARIMA(3, 0, 2) ---
     ==============================================================================
                      coef    std err          z      P>|z|      [0.025      0.975]
     ------------------------------------------------------------------------------
-    intercept     19.3768      2.980      6.503      0.000      13.537      25.217
-    ar.L1          0.9690      0.003    310.283      0.000       0.963       0.975
-    ma.L1         -0.3230      0.008    -40.107      0.000      -0.339      -0.307
-    ma.L2         -0.0593      0.009     -6.813      0.000      -0.076      -0.042
-    ma.L3          0.0358      0.009      4.131      0.000       0.019       0.053
-    ma.L4          0.0306      0.010      3.208      0.001       0.012       0.049
-    ma.L5          0.0295      0.009      3.300      0.001       0.012       0.047
-    sigma2      1.749e+04    169.998    102.862      0.000    1.72e+04    1.78e+04
+    intercept      1.8550      0.230      8.069      0.000       1.404       2.306
+    ar.L1          2.1945      0.026     84.677      0.000       2.144       2.245
+    ar.L2         -1.4349      0.051    -28.302      0.000      -1.534      -1.336
+    ar.L3          0.2375      0.025      9.417      0.000       0.188       0.287
+    ma.L1         -1.5868      0.022    -72.869      0.000      -1.629      -1.544
+    ma.L2          0.6245      0.022     28.368      0.000       0.581       0.668
+    sigma2      1.596e+04    205.374     77.712      0.000    1.56e+04    1.64e+04
     ==============================================================================
     
 
@@ -1352,28 +1343,28 @@ for model_name, metrics in models_metrics.items():
     ======================================================================
     Model                     RMSE         MAE          MAPE        
     ----------------------------------------------------------------------
-    Manual A (1,0,0)          57.20        41.46        36.91       %
-    Manual B (2,0,0)          54.34        39.19        37.45       %
-    Auto (ARIMA)              51.44        36.94        38.64       %
+    Manual A (1,0,0)          54.76        40.61        38.89       %
+    Manual B (2,0,0)          51.91        38.32        39.06       %
+    Auto (ARIMA)              49.02        36.05        40.52       %
     
     ======================================================================
     RELATIVE PERFORMANCE (vs Best Model)
     ======================================================================
     
     Manual A (1,0,0):
-      RMSE: +11.19% from best
-      MAE:  +12.23% from best
+      RMSE: +11.72% from best
+      MAE:  +12.66% from best
       MAPE: +0.00% from best
     
     Manual B (2,0,0):
-      RMSE: +5.64% from best
-      MAE:  +6.07% from best
-      MAPE: +1.47% from best
+      RMSE: +5.91% from best
+      MAE:  +6.30% from best
+      MAPE: +0.44% from best
     
     Auto (ARIMA):
       RMSE: +0.00% from best
       MAE:  +0.00% from best
-      MAPE: +4.68% from best
+      MAPE: +4.18% from best
     
 
 **In-Sample Performance Analysis:**
@@ -1513,9 +1504,9 @@ print("• Durbin-Watson 1.5-2.5: No significant autocorrelation (GOOD)")
     
     Model                     Ljung-Box p     Jarque-Bera p   Durbin-Watson  
     ----------------------------------------------------------------------
-    Manual A (1,0,0)          0.000000        0.000000        2.5642         
-    Manual B (2,0,0)          0.000000        0.000000        2.1360         
-    Auto (ARIMA)              0.249142        0.000000        1.9999         
+    Manual A (1,0,0)          0.000000        0.000000        2.5730         
+    Manual B (2,0,0)          0.000000        0.000000        2.1402         
+    Auto (ARIMA)              0.081619        0.000000        1.9966         
     
     ======================================================================
     DIAGNOSTIC INTERPRETATION
@@ -1560,10 +1551,10 @@ print(f"{'Criterion':<20} {'Manual A':<15} {'Manual B':<15} {'Auto':<15}")
 print("-" * 70)
 
 # AIC comparison
-print(f"{'AIC':<20} {fitted_manual_a.aic:<15.2f} {fitted_manual_b.aic:<15.2f} {get_model_aic(auto_model):<15.2f}")
+print(f"{'AIC':<20} {fitted_manual_a.aic:<15.2f} {fitted_manual_b.aic:<15.2f} {get_model_aic(auto_model_5m):<15.2f}")
 
 # BIC comparison
-print(f"{'BIC':<20} {fitted_manual_a.bic:<15.2f} {fitted_manual_b.bic:<15.2f} {get_model_aic(auto_model) if hasattr(auto_model, 'bic') and callable(auto_model.bic) else auto_model.bic:<15.2f}")
+print(f"{'BIC':<20} {fitted_manual_a.bic:<15.2f} {fitted_manual_b.bic:<15.2f} {get_model_aic(auto_model_5m) if hasattr(auto_model_5m, 'bic') and callable(auto_model_5m.bic) else auto_model_5m.bic:<15.2f}")
 
 # RMSE comparison
 print(f"{'RMSE (In-Sample)':<20} {metrics_manual_a['RMSE']:<15.2f} {metrics_manual_b['RMSE']:<15.2f} {metrics_auto['RMSE']:<15.2f}")
@@ -1577,7 +1568,7 @@ print(f"{'Ljung-Box OK':<20} {lb_status_a:<15} {lb_status_b:<15} {lb_status_auto
 # Complexity (number of parameters)
 complexity_a = 1  # AR(1)
 complexity_b = 2  # AR(2)
-complexity_auto = p + q  # AR(p) + MA(q)
+complexity_auto = p_5m + q_5m  # AR(p) + MA(q)
 print(f"{'Parameters':<20} {complexity_a:<15} {complexity_b:<15} {complexity_auto:<15}")
 
 print("\n" + "=" * 70)
@@ -1628,24 +1619,24 @@ print(f"\nProceeding with ARIMA({p_5m}, {d_optimal_5m}, {q_5m}) for forecasting 
     ======================================================================
     Criterion            Manual A        Manual B        Auto           
     ----------------------------------------------------------------------
-    AIC                  163708.37       162176.21       62964.32       
-    BIC                  163731.21       162206.67       62964.32       
-    RMSE (In-Sample)     57.20           54.34           51.44          
+    AIC                  162404.80       160806.62       62299.72       
+    BIC                  162427.64       160837.07       62299.72       
+    RMSE (In-Sample)     54.76           51.91           49.02          
     Ljung-Box OK         ✗               ✗               ✓              
-    Parameters           1               2               6              
+    Parameters           1               2               5              
     
     ======================================================================
     RECOMMENDATION
     ======================================================================
     
-    Selected Model: Auto Model: ARIMA(4, 0, 1)
+    Selected Model: Auto Model: ARIMA(2, 0, 1)
     
     Rationale:
     • Primary criterion: Lowest AIC (balance of fit and complexity)
     • Secondary criteria: BIC, residual diagnostics, model simplicity
     • The selected model provides the best trade-off between accuracy and complexity
     
-    Proceeding with ARIMA(4, 0, 1) for forecasting in Section 3 (5m comparison)
+    Proceeding with ARIMA(2, 0, 1) for forecasting in Section 3 (5m comparison)
     
 
 **Final Model Selection:**
@@ -1750,40 +1741,40 @@ for window, auto_model in auto_models.items():
                                    SARIMAX Results                                
     ==============================================================================
     Dep. Variable:        requests_target   No. Observations:                74880
-    Model:                 ARIMA(5, 0, 1)   Log Likelihood             -305826.560
-    Date:                Mon, 02 Feb 2026   AIC                         611669.119
-    Time:                        22:35:25   BIC                         611742.909
-    Sample:                    07-02-1995   HQIC                        611691.808
+    Model:                 ARIMA(5, 0, 1)   Log Likelihood             -302830.844
+    Date:                Mon, 02 Feb 2026   AIC                         605677.688
+    Time:                        23:30:46   BIC                         605751.477
+    Sample:                    07-02-1995   HQIC                        605700.376
                              - 08-22-1995                                         
     Covariance Type:                  opg                                         
     ==============================================================================
                      coef    std err          z      P>|z|      [0.025      0.975]
     ------------------------------------------------------------------------------
-    const         41.8063      3.539     11.813      0.000      34.870      48.743
-    ar.L1          1.3003      0.003    497.190      0.000       1.295       1.305
-    ar.L2         -0.2341      0.004    -56.311      0.000      -0.242      -0.226
-    ar.L3         -0.0443      0.004    -10.886      0.000      -0.052      -0.036
-    ar.L4          0.0146      0.004      3.337      0.001       0.006       0.023
-    ar.L5         -0.0376      0.003    -13.847      0.000      -0.043      -0.032
-    ma.L1         -0.9407      0.001   -792.555      0.000      -0.943      -0.938
-    sigma2       206.5474      0.602    343.133      0.000     205.368     207.727
+    const         41.5387      3.498     11.876      0.000      34.683      48.394
+    ar.L1          1.2911      0.003    403.673      0.000       1.285       1.297
+    ar.L2         -0.2255      0.005    -46.688      0.000      -0.235      -0.216
+    ar.L3         -0.0386      0.005     -7.699      0.000      -0.048      -0.029
+    ar.L4          0.0069      0.005      1.368      0.171      -0.003       0.017
+    ar.L5         -0.0348      0.003    -10.860      0.000      -0.041      -0.029
+    ma.L1         -0.9437      0.001   -636.310      0.000      -0.947      -0.941
+    sigma2       190.6681      0.730    261.102      0.000     189.237     192.099
     ===================================================================================
-    Ljung-Box (L1) (Q):                   0.02   Jarque-Bera (JB):             69536.94
-    Prob(Q):                              0.90   Prob(JB):                         0.00
-    Heteroskedasticity (H):               0.67   Skew:                             0.32
-    Prob(H) (two-sided):                  0.00   Kurtosis:                         7.68
+    Ljung-Box (L1) (Q):                   0.01   Jarque-Bera (JB):             12102.30
+    Prob(Q):                              0.91   Prob(JB):                         0.00
+    Heteroskedasticity (H):               0.79   Skew:                             0.24
+    Prob(H) (two-sided):                  0.00   Kurtosis:                         4.91
     ===================================================================================
     
     Warnings:
     [1] Covariance matrix calculated using the outer product of gradients (complex-step).
     
-    AR coefficients: [ 1.30030438 -0.2340701  -0.04426548  0.01462296 -0.03759701]
-    MA coefficients: [-0.94071674]
-    AIC: 611669.12
-    BIC: 611742.91
+    AR coefficients: [ 1.29112493 -0.22551454 -0.03861746  0.00690706 -0.03483884]
+    MA coefficients: [-0.9437109]
+    AIC: 605677.69
+    BIC: 605751.48
     
     --- 5m Time Window ---
-    Optimal Parameters: ARIMA(4, 0, 1)
+    Optimal Parameters: ARIMA(2, 0, 1)
     Training data: 14976 observations
     Date range: 1995-07-02 00:00:00-04:00 to 1995-08-22 23:55:00-04:00
     
@@ -1791,39 +1782,37 @@ for window, auto_model in auto_models.items():
                                    SARIMAX Results                                
     ==============================================================================
     Dep. Variable:        requests_target   No. Observations:                14976
-    Model:                 ARIMA(4, 0, 1)   Log Likelihood              -80262.016
-    Date:                Mon, 02 Feb 2026   AIC                         160538.032
-    Time:                        22:35:47   BIC                         160591.331
-    Sample:                    07-02-1995   HQIC                        160555.717
+    Model:                 ARIMA(2, 0, 1)   Log Likelihood              -79539.544
+    Date:                Mon, 02 Feb 2026   AIC                         159089.088
+    Time:                        23:31:05   BIC                         159127.159
+    Sample:                    07-02-1995   HQIC                        159101.720
                              - 08-22-1995                                         
     Covariance Type:                  opg                                         
     ==============================================================================
                      coef    std err          z      P>|z|      [0.025      0.975]
     ------------------------------------------------------------------------------
-    const        209.0124     18.034     11.590      0.000     173.666     244.359
-    ar.L1          1.2089      0.010    118.983      0.000       1.189       1.229
-    ar.L2         -0.2371      0.008    -28.220      0.000      -0.254      -0.221
-    ar.L3          0.0013      0.008      0.155      0.877      -0.015       0.018
-    ar.L4          0.0197      0.007      2.837      0.005       0.006       0.033
-    ma.L1         -0.7357      0.009    -80.174      0.000      -0.754      -0.718
-    sigma2      2645.7754     13.776    192.063      0.000    2618.776    2672.775
+    const        207.3520     17.992     11.525      0.000     172.089     242.615
+    ar.L1          1.2279      0.009    138.667      0.000       1.211       1.245
+    ar.L2         -0.2338      0.009    -27.273      0.000      -0.251      -0.217
+    ma.L1         -0.7714      0.006   -127.487      0.000      -0.783      -0.760
+    sigma2      2402.1948     16.190    148.373      0.000    2370.463    2433.927
     ===================================================================================
-    Ljung-Box (L1) (Q):                   0.00   Jarque-Bera (JB):             51312.20
-    Prob(Q):                              0.99   Prob(JB):                         0.00
-    Heteroskedasticity (H):               0.60   Skew:                            -0.24
-    Prob(H) (two-sided):                  0.00   Kurtosis:                        12.06
+    Ljung-Box (L1) (Q):                   0.04   Jarque-Bera (JB):             14319.48
+    Prob(Q):                              0.84   Prob(JB):                         0.00
+    Heteroskedasticity (H):               0.76   Skew:                            -0.22
+    Prob(H) (two-sided):                  0.00   Kurtosis:                         7.77
     ===================================================================================
     
     Warnings:
     [1] Covariance matrix calculated using the outer product of gradients (complex-step).
     
-    AR coefficients: [ 1.20893211 -0.2371015   0.00131333  0.01974217]
-    MA coefficients: [-0.73572791]
-    AIC: 160538.03
-    BIC: 160591.33
+    AR coefficients: [ 1.22787409 -0.23378811]
+    MA coefficients: [-0.7713866]
+    AIC: 159089.09
+    BIC: 159127.16
     
     --- 15m Time Window ---
-    Optimal Parameters: ARIMA(1, 0, 5)
+    Optimal Parameters: ARIMA(3, 0, 2)
     Training data: 4992 observations
     Date range: 1995-07-02 00:00:00-04:00 to 1995-08-22 23:45:00-04:00
     
@@ -1831,37 +1820,36 @@ for window, auto_model in auto_models.items():
                                    SARIMAX Results                                
     ==============================================================================
     Dep. Variable:        requests_target   No. Observations:                 4992
-    Model:                 ARIMA(1, 0, 5)   Log Likelihood              -31474.154
-    Date:                Mon, 02 Feb 2026   AIC                          62964.309
-    Time:                        22:35:49   BIC                          63016.433
-    Sample:                    07-02-1995   HQIC                         62982.579
+    Model:                 ARIMA(3, 0, 2)   Log Likelihood              -31140.702
+    Date:                Mon, 02 Feb 2026   AIC                          62295.403
+    Time:                        23:31:09   BIC                          62341.012
+    Sample:                    07-02-1995   HQIC                         62311.390
                              - 08-22-1995                                         
     Covariance Type:                  opg                                         
     ==============================================================================
                      coef    std err          z      P>|z|      [0.025      0.975]
     ------------------------------------------------------------------------------
-    const        626.7572     50.429     12.429      0.000     527.918     725.596
-    ar.L1          0.9691      0.003    309.236      0.000       0.963       0.975
-    ma.L1         -0.3231      0.008    -39.969      0.000      -0.339      -0.307
-    ma.L2         -0.0593      0.009     -6.788      0.000      -0.076      -0.042
-    ma.L3          0.0358      0.009      4.110      0.000       0.019       0.053
-    ma.L4          0.0306      0.010      3.196      0.001       0.012       0.049
-    ma.L5          0.0295      0.009      3.280      0.001       0.012       0.047
-    sigma2      1.755e+04    171.228    102.490      0.000    1.72e+04    1.79e+04
+    const        621.8198     25.972     23.942      0.000     570.915     672.725
+    ar.L1          2.2021      0.025     89.325      0.000       2.154       2.250
+    ar.L2         -1.4485      0.048    -29.988      0.000      -1.543      -1.354
+    ar.L3          0.2435      0.024     10.124      0.000       0.196       0.291
+    ma.L1         -1.5925      0.021    -77.203      0.000      -1.633      -1.552
+    ma.L2          0.6303      0.021     30.227      0.000       0.589       0.671
+    sigma2      1.533e+04    189.717     80.827      0.000     1.5e+04    1.57e+04
     ===================================================================================
-    Ljung-Box (L1) (Q):                   0.02   Jarque-Bera (JB):             14241.42
-    Prob(Q):                              0.89   Prob(JB):                         0.00
-    Heteroskedasticity (H):               0.49   Skew:                             0.30
-    Prob(H) (two-sided):                  0.00   Kurtosis:                        11.25
+    Ljung-Box (L1) (Q):                   0.00   Jarque-Bera (JB):              3608.36
+    Prob(Q):                              0.95   Prob(JB):                         0.00
+    Heteroskedasticity (H):               0.64   Skew:                             0.03
+    Prob(H) (two-sided):                  0.00   Kurtosis:                         7.16
     ===================================================================================
     
     Warnings:
     [1] Covariance matrix calculated using the outer product of gradients (complex-step).
     
-    AR coefficients: [0.96906165]
-    MA coefficients: [-0.32306698 -0.059321    0.03577993  0.03060447  0.0294565 ]
-    AIC: 62964.31
-    BIC: 63016.43
+    AR coefficients: [ 2.20212842 -1.44852411  0.24347297]
+    MA coefficients: [-1.5925259   0.63034352]
+    AIC: 62295.40
+    BIC: 62341.01
     
 
 **Model Summary Interpretation:**
@@ -1945,9 +1933,9 @@ for window, info in saved_models.items():
     ======================================================================
     Window     ARIMA(p,d,q)    AIC          BIC          File                          
     ----------------------------------------------------------------------
-    1m         (5,0,1)         611669.12    611742.91    arima_5_0_1_1m.pkl            
-    5m         (4,0,1)         160538.03    160591.33    arima_4_0_1_5m.pkl            
-    15m        (1,0,5)         62964.31     63016.43     arima_1_0_5_15m.pkl           
+    1m         (5,0,1)         605677.69    605751.48    arima_5_0_1_1m.pkl            
+    5m         (2,0,1)         159089.09    159127.16    arima_2_0_1_5m.pkl            
+    15m        (3,0,2)         62295.40     62341.01     arima_3_0_2_15m.pkl           
     
     ============================================================
     ALL MODELS SAVED SUCCESSFULLY
@@ -1955,8 +1943,8 @@ for window, info in saved_models.items():
     
     To load the models later:
       1m: loaded_model = joblib.load('D:\Autoscaling-Analysis\models\arima_5_0_1_1m.pkl')
-      5m: loaded_model = joblib.load('D:\Autoscaling-Analysis\models\arima_4_0_1_5m.pkl')
-      15m: loaded_model = joblib.load('D:\Autoscaling-Analysis\models\arima_1_0_5_15m.pkl')
+      5m: loaded_model = joblib.load('D:\Autoscaling-Analysis\models\arima_2_0_1_5m.pkl')
+      15m: loaded_model = joblib.load('D:\Autoscaling-Analysis\models\arima_3_0_2_15m.pkl')
     
 
 ## 2.4 Model Diagnostics
@@ -2030,10 +2018,10 @@ for window, fitted_model in fitted_models.items():
     ======================================================================
     
     --- 1m Time Window ---
-    Mean: -0.0017
-    Std Dev: 14.3724
-    Min: -171.4319
-    Max: 169.1627
+    Mean: -0.0018
+    Std Dev: 13.8087
+    Min: -116.8775
+    Max: 78.2749
     
 
 
@@ -2044,10 +2032,10 @@ for window, fitted_model in fitted_models.items():
 
     
     --- 5m Time Window ---
-    Mean: -0.0183
-    Std Dev: 51.4407
-    Min: -702.9295
-    Max: 495.0341
+    Mean: -0.0195
+    Std Dev: 49.0183
+    Min: -440.9265
+    Max: 373.0644
     
 
 
@@ -2058,10 +2046,10 @@ for window, fitted_model in fitted_models.items():
 
     
     --- 15m Time Window ---
-    Mean: -0.0654
-    Std Dev: 132.4047
-    Min: -1077.4852
-    Max: 1299.2151
+    Mean: -0.0353
+    Std Dev: 123.8482
+    Min: -950.1735
+    Max: 974.2032
     
 
 
@@ -2193,51 +2181,51 @@ print("  - ACF of residuals shows no significant lags")
     --- 1m Time Window ---
     
     1. Ljung-Box Test (Autocorrelation)
-       p-value: 0.007446
+       p-value: 0.030477
        ✗ p-value ≤ 0.05: Residuals show autocorrelation (BAD)
     
     2. Jarque-Bera Test (Normality)
-       Statistic: 69519.8270
+       Statistic: 12099.8671
        p-value: 0.000000
        ✗ p-value ≤ 0.05: Residuals are not normally distributed (BAD)
     
     4. Durbin-Watson Test (Autocorrelation)
-       Statistic: 2.0009
+       Statistic: 2.0008
        ✓ 1.5 < DW < 2.5: No significant autocorrelation (GOOD)
     
     --- 5m Time Window ---
     
     1. Ljung-Box Test (Autocorrelation)
-       p-value: 0.248363
+       p-value: 0.082677
        ✓ p-value > 0.05: Residuals are uncorrelated (GOOD)
     
     2. Jarque-Bera Test (Normality)
-       Statistic: 51298.0573
+       Statistic: 14315.6304
        p-value: 0.000000
        ✗ p-value ≤ 0.05: Residuals are not normally distributed (BAD)
     
     4. Durbin-Watson Test (Autocorrelation)
-       Statistic: 1.9998
+       Statistic: 1.9967
        ✓ 1.5 < DW < 2.5: No significant autocorrelation (GOOD)
     
     --- 15m Time Window ---
     
     1. Ljung-Box Test (Autocorrelation)
-       p-value: 0.000003
-       ✗ p-value ≤ 0.05: Residuals show autocorrelation (BAD)
+       p-value: 0.641851
+       ✓ p-value > 0.05: Residuals are uncorrelated (GOOD)
     
     2. Jarque-Bera Test (Normality)
-       Statistic: 14239.8429
+       Statistic: 3607.1213
        p-value: 0.000000
        ✗ p-value ≤ 0.05: Residuals are not normally distributed (BAD)
     
     3. Shapiro-Wilk Test (Normality)
-       Statistic: 0.9390
+       Statistic: 0.9660
        p-value: 0.000000
        ✗ p-value ≤ 0.05: Residuals are not normally distributed (BAD)
     
     4. Durbin-Watson Test (Autocorrelation)
-       Statistic: 1.9961
+       Statistic: 1.9981
        ✓ 1.5 < DW < 2.5: No significant autocorrelation (GOOD)
     
     ======================================================================
@@ -2245,9 +2233,9 @@ print("  - ACF of residuals shows no significant lags")
     ======================================================================
     Window     Ljung-Box p     Jarque-Bera p   Durbin-Watson   Overall        
     ----------------------------------------------------------------------
-    1m         0.007446        0.000000        2.0009          MIXED          
-    5m         0.248363        0.000000        1.9998          MIXED          
-    15m        0.000003        0.000000        1.9961          MIXED          
+    1m         0.030477        0.000000        2.0008          MIXED          
+    5m         0.082677        0.000000        1.9967          MIXED          
+    15m        0.641851        0.000000        1.9981          MIXED          
     
     ======================================================================
     DIAGNOSTIC SUMMARY
@@ -2336,9 +2324,9 @@ for window, results in diagnostics_results.items():
     ======================================================================
     Window     ARIMA(p,d,q)    AIC             BIC             Train Samples  
     ----------------------------------------------------------------------
-    1m         (5,0,1)         611669.12       611742.91       74880          
-    5m         (4,0,1)         160538.03       160591.33       14976          
-    15m        (1,0,5)         62964.31        63016.43        4992           
+    1m         (5,0,1)         605677.69       605751.48       74880          
+    5m         (2,0,1)         159089.09       159127.16       14976          
+    15m        (3,0,2)         62295.40        62341.01        4992           
     
     ======================================================================
     KEY OBSERVATIONS
@@ -2349,28 +2337,12 @@ for window, results in diagnostics_results.items():
     - How MA order (q) changes with aggregation level
     - How AIC/BIC values vary across windows
     
-    **Best Model by AIC:** 15m time window (AIC = 62964.31)
+    **Best Model by AIC:** 15m time window (AIC = 62295.40)
     
     **Model Diagnostics Summary:**
       1m: Ljung-Box ✗, Jarque-Bera ✗, Durbin-Watson ✓
       5m: Ljung-Box ✓, Jarque-Bera ✗, Durbin-Watson ✓
-      15m: Ljung-Box ✗, Jarque-Bera ✗, Durbin-Watson ✓
-    
-    **Saved Models:**
-      1m: D:\Autoscaling-Analysis\models\arima_5_0_1_1m.pkl (472668.48 KB)
-      5m: D:\Autoscaling-Analysis\models\arima_4_0_1_5m.pkl (66743.92 KB)
-      15m: D:\Autoscaling-Analysis\models\arima_1_0_5_15m.pkl (42355.84 KB)
-    
-    ======================================================================
-    NEXT STEPS
-    ======================================================================
-    1. Proceed to Section 3: Post-train Evaluation
-    2. Generate forecasts on test data for all time windows
-    3. Calculate out-of-sample performance metrics for each window
-    4. Compare actual vs predicted values across windows
-    5. Analyze forecast errors and residuals
-    6. Draw final conclusions and recommendations
-    7. Select best time window for production deployment
+      15m: Ljung-Box ✓, Jarque-Bera ✗, Durbin-Watson ✓
     
 
 # Section 3: Post-train Evaluation
@@ -2441,7 +2413,7 @@ for window in ['1m', '5m', '15m']:
     ✓ Confidence intervals calculated (95%)
     
     --- 5m Time Window ---
-    Model: ARIMA(4, 0, 1)
+    Model: ARIMA(2, 0, 1)
     Test set size: 2592 observations
     Forecast horizon: 2592 periods
     ✓ Forecast generated successfully
@@ -2449,7 +2421,7 @@ for window in ['1m', '5m', '15m']:
     ✓ Confidence intervals calculated (95%)
     
     --- 15m Time Window ---
-    Model: ARIMA(1, 0, 5)
+    Model: ARIMA(3, 0, 2)
     Test set size: 864 observations
     Forecast horizon: 864 periods
     ✓ Forecast generated successfully
@@ -2459,31 +2431,31 @@ for window in ['1m', '5m', '15m']:
     ============================================================
     FORECAST SAMPLE - 1M WINDOW (First 5 values)
     ============================================================
-    1995-08-23 00:00:00-04:00    33.264955
-    1995-08-23 00:01:00-04:00    30.880197
-    1995-08-23 00:02:00-04:00    29.706890
-    1995-08-23 00:03:00-04:00    29.551748
-    1995-08-23 00:04:00-04:00    28.904841
+    1995-08-23 00:00:00-04:00    33.056390
+    1995-08-23 00:01:00-04:00    30.694042
+    1995-08-23 00:02:00-04:00    29.627720
+    1995-08-23 00:03:00-04:00    29.400978
+    1995-08-23 00:04:00-04:00    28.758263
     Freq: min
     
     ============================================================
     FORECAST SAMPLE - 5M WINDOW (First 5 values)
     ============================================================
-    1995-08-23 00:00:00-04:00    134.977283
-    1995-08-23 00:05:00-04:00    134.652179
-    1995-08-23 00:10:00-04:00    135.154835
-    1995-08-23 00:15:00-04:00    135.855366
-    1995-08-23 00:20:00-04:00    136.522978
+    1995-08-23 00:00:00-04:00    135.423510
+    1995-08-23 00:05:00-04:00    135.246544
+    1995-08-23 00:10:00-04:00    135.631604
+    1995-08-23 00:15:00-04:00    136.145783
+    1995-08-23 00:20:00-04:00    136.687106
     Freq: 5min
     
     ============================================================
     FORECAST SAMPLE - 15M WINDOW (First 5 values)
     ============================================================
-    1995-08-23 00:00:00-04:00    404.767212
-    1995-08-23 00:15:00-04:00    405.808976
-    1995-08-23 00:30:00-04:00    408.081520
-    1995-08-23 00:45:00-04:00    413.081789
-    1995-08-23 01:00:00-04:00    420.452347
+    1995-08-23 00:00:00-04:00    401.157693
+    1995-08-23 00:15:00-04:00    400.379332
+    1995-08-23 00:30:00-04:00    400.537127
+    1995-08-23 00:45:00-04:00    401.563535
+    1995-08-23 01:00:00-04:00    403.405739
     Freq: 15min
     
 
@@ -2544,16 +2516,16 @@ print(f"Best MAPE: {best_mape_window} ({all_metrics[best_mape_window]['MAPE']:.2
     ======================================================================
     Window     MSE             RMSE            MAE             MAPE (%)       
     ----------------------------------------------------------------------
-    1m         726.16          26.95           21.63           123.71         
-    5m         14921.52        122.15          99.71           87.30          
-    15m        125219.87       353.86          292.00          73.12          
+    1m         713.89          26.72           21.48           123.04         
+    5m         14849.92        121.86          99.20           86.26          
+    15m        122745.80       350.35          287.61          72.00          
     
     ======================================================================
     BEST PERFORMING MODEL BY METRIC
     ======================================================================
-    Best RMSE: 1m (26.95)
-    Best MAE:  1m (21.63)
-    Best MAPE: 15m (73.12%)
+    Best RMSE: 1m (26.72)
+    Best MAE:  1m (21.48)
+    Best MAPE: 15m (72.00%)
     
 
 **Performance Metrics Interpretation:**
@@ -2825,28 +2797,28 @@ for window in ['1m', '5m', '15m']:
     ======================================================================
     
     --- 1M Window ---
-    Mean: -0.5657
-    Std Dev: 26.9424
-    Min: -41.8063
-    Max: 153.1937
-    Skewness: 0.9681
-    Kurtosis: 0.6616
+    Mean: -0.2382
+    Std Dev: 26.7187
+    Min: -40.5387
+    Max: 90.3017
+    Skewness: 0.9179
+    Kurtosis: 0.3584
     
     --- 5M Window ---
-    Mean: -2.4771
-    Std Dev: 122.1521
-    Min: -209.0124
-    Max: 445.9876
-    Skewness: 0.8424
-    Kurtosis: 0.0908
+    Mean: -0.4497
+    Std Dev: 121.8829
+    Min: -203.3369
+    Max: 383.6480
+    Skewness: 0.8344
+    Kurtosis: 0.0425
     
     --- 15M Window ---
-    Mean: -8.4764
-    Std Dev: 353.9676
-    Min: -553.7438
-    Max: 1023.2428
-    Skewness: 0.8238
-    Kurtosis: -0.1074
+    Mean: -8.5266
+    Std Dev: 350.4501
+    Min: -548.7976
+    Max: 1028.1802
+    Skewness: 0.8512
+    Kurtosis: -0.0246
     
     --- Residual Analysis for 1M Window ---
     
@@ -2883,9 +2855,9 @@ for window in ['1m', '5m', '15m']:
     ================================================================================
     Window     Mean         Std Dev      Skewness     Kurtosis    
     --------------------------------------------------------------------------------
-    1m         -0.5657      26.9424      0.9681       0.6616      
-    5m         -2.4771      122.1521     0.8424       0.0908      
-    15m        -8.4764      353.9676     0.8238       -0.1074     
+    1m         -0.2382      26.7187      0.9179       0.3584      
+    5m         -0.4497      121.8829     0.8344       0.0425      
+    15m        -8.5266      350.4501     0.8512       -0.0246     
     
 
 **Figure 9: Forecast Residual Analysis**
@@ -2986,70 +2958,70 @@ for window in ['1m', '5m', '15m']:
     First Week:
       Date range: 1995-08-23 to 1995-08-30
       Observations: 10081
-      RMSE: 24.02
-      MAE: 19.95
-      MAPE: 143.13%
+      RMSE: 23.91
+      MAE: 19.81
+      MAPE: 142.34%
     First 2 Weeks:
       Date range: 1995-08-23 to 1995-09-06
       Observations: 12960
-      RMSE: 26.95
-      MAE: 21.63
-      MAPE: 123.71%
+      RMSE: 26.72
+      MAE: 21.48
+      MAPE: 123.04%
     Full Period:
       Date range: 1995-08-23 to 1995-08-31
       Observations: 12960
-      RMSE: 26.95
-      MAE: 21.63
-      MAPE: 123.71%
+      RMSE: 26.72
+      MAE: 21.48
+      MAPE: 123.04%
     
     --- 5M Time Window ---
     First Week:
       Date range: 1995-08-23 to 1995-08-30
       Observations: 2017
-      RMSE: 107.90
-      MAE: 91.30
-      MAPE: 99.21%
+      RMSE: 107.44
+      MAE: 90.64
+      MAPE: 97.93%
     First 2 Weeks:
       Date range: 1995-08-23 to 1995-09-06
       Observations: 2592
-      RMSE: 122.15
-      MAE: 99.71
-      MAPE: 87.30%
+      RMSE: 121.86
+      MAE: 99.20
+      MAPE: 86.26%
     Full Period:
       Date range: 1995-08-23 to 1995-08-31
       Observations: 2592
-      RMSE: 122.15
-      MAE: 99.71
-      MAPE: 87.30%
+      RMSE: 121.86
+      MAE: 99.20
+      MAPE: 86.26%
     
     --- 15M Time Window ---
     First Week:
       Date range: 1995-08-23 to 1995-08-30
       Observations: 673
-      RMSE: 311.10
-      MAE: 266.86
-      MAPE: 81.56%
+      RMSE: 304.73
+      MAE: 260.67
+      MAPE: 80.12%
     First 2 Weeks:
       Date range: 1995-08-23 to 1995-09-06
       Observations: 864
-      RMSE: 353.86
-      MAE: 292.00
-      MAPE: 73.12%
+      RMSE: 350.35
+      MAE: 287.61
+      MAPE: 72.00%
     Full Period:
       Date range: 1995-08-23 to 1995-08-31
       Observations: 864
-      RMSE: 353.86
-      MAE: 292.00
-      MAPE: 73.12%
+      RMSE: 350.35
+      MAE: 287.61
+      MAPE: 72.00%
     
     ==========================================================================================
     PERFORMANCE COMPARISON ACROSS TIME WINDOWS BY TIME PERIOD
     ==========================================================================================
     Period          Window     RMSE            MAE             MAPE (%)       
     ------------------------------------------------------------------------------------------
-    Full Period     1m         26.95           21.63           123.71         
-    Full Period     5m         122.15          99.71           87.30          
-    Full Period     15m        353.86          292.00          73.12          
+    Full Period     1m         26.72           21.48           123.04         
+    Full Period     5m         121.86          99.20           86.26          
+    Full Period     15m        350.35          287.61          72.00          
     
 
 **Performance by Time Period:**
@@ -3184,23 +3156,23 @@ for window in ['1m', '5m', '15m']:
     ================================================================================
     Window     Model                     RMSE         MAE          MAPE        
     --------------------------------------------------------------------------------
-    1m         Naive (Last Value)        27.58        22.98        141.82      
-    1m         Mean Forecast             27.08        21.86        126.51      
-    1m         ARIMA(5, 0, 1)            26.95        21.63        123.71      
-    1m         Improvement vs Naive:     RMSE: +2.3%, MAE: +5.9%
-    1m         Improvement vs Mean:      RMSE: +0.5%, MAE: +1.1%
+    1m         Naive (Last Value)        27.35        22.88        142.30      
+    1m         Mean Forecast             26.84        21.72        125.99      
+    1m         ARIMA(5, 0, 1)            26.72        21.48        123.04      
+    1m         Improvement vs Naive:     RMSE: +2.3%, MAE: +6.1%
+    1m         Improvement vs Mean:      RMSE: +0.4%, MAE: +1.1%
     --------------------------------------------------------------------------------
-    5m         Naive (Last Value)        138.97       100.93       60.24       
-    5m         Mean Forecast             122.87       101.00       89.57       
-    5m         ARIMA(4, 0, 1)            122.15       99.71        87.30       
-    5m         Improvement vs Naive:     RMSE: +12.1%, MAE: +1.2%
-    5m         Improvement vs Mean:      RMSE: +0.6%, MAE: +1.3%
+    5m         Naive (Last Value)        138.74       100.80       60.21       
+    5m         Mean Forecast             122.50       100.45       88.62       
+    5m         ARIMA(2, 0, 1)            121.86       99.20        86.26       
+    5m         Improvement vs Naive:     RMSE: +12.2%, MAE: +1.6%
+    5m         Improvement vs Mean:      RMSE: +0.5%, MAE: +1.2%
     --------------------------------------------------------------------------------
     15m        Naive (Last Value)        411.46       297.27       49.85       
-    15m        Mean Forecast             356.28       295.81       74.99       
-    15m        ARIMA(1, 0, 5)            353.86       292.00       73.12       
-    15m        Improvement vs Naive:     RMSE: +14.0%, MAE: +1.8%
-    15m        Improvement vs Mean:      RMSE: +0.7%, MAE: +1.3%
+    15m        Mean Forecast             356.07       294.75       74.23       
+    15m        ARIMA(3, 0, 2)            350.35       287.61       72.00       
+    15m        Improvement vs Naive:     RMSE: +14.9%, MAE: +3.2%
+    15m        Improvement vs Mean:      RMSE: +1.6%, MAE: +2.4%
     --------------------------------------------------------------------------------
     
     ==========================================================================================
@@ -3208,9 +3180,9 @@ for window in ['1m', '5m', '15m']:
     ==========================================================================================
     Window     Best Baseline   ARIMA RMSE   ARIMA MAE    ARIMA MAPE   Improvement    
     ------------------------------------------------------------------------------------------
-    1m         Mean            26.95        21.63        123.71       +0.5%
-    5m         Mean            122.15       99.71        87.30        +0.6%
-    15m        Mean            353.86       292.00       73.12        +0.7%
+    1m         Mean            26.72        21.48        123.04       +0.4%
+    5m         Mean            121.86       99.20        86.26        +0.5%
+    15m        Mean            350.35       287.61       72.00        +1.6%
     
     --- Visual Comparison for 1M Window ---
     
