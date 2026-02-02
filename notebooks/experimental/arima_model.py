@@ -501,111 +501,58 @@ plt.show()
 # - Consider SARIMA (Seasonal ARIMA) model
 
 # %% [markdown]
-# **Interpretation Result:**
+# **ACF and PACF Interpretation:**
 #
-# These plots provide a classic diagnostic for time series analysis. Based on the patterns in the Autocorrelation Function (ACF) and Partial Autocorrelation Function (PACF), here is the breakdown of what this result indicates:
+# **ACF Pattern Analysis:**
 #
-# ---
+# The ACF plot shows correlations starting near 1.0 and decaying very slowly over 50+ lags. This slow, linear decay indicates:
 #
-# **1. Non-Stationarity (The Primary Finding)**
+# - High persistence in the series (shocks take a long time to dissipate)
+# - The series exhibits properties often associated with non-stationary data
+# - Differencing (d=1) would typically be required to stabilize the mean
 #
-# The most striking feature is in the **ACF plot**. The correlations start very high (near 1.0) and decay **very slowly and linearly**.
+# **PACF Pattern Analysis:**
 #
-# - In a stationary series, the ACF should drop to zero quickly
-# - This "tailing off" over 50+ lags is a hallmark sign of a **trend** or **non-stationary** data
-# - **Action:** You likely need to apply **differencing** (e.g., d = 1) to stabilize the mean before fitting an ARIMA model
+# The PACF plot shows:
+# - A sharp cutoff after Lag 1 (very strong spike)
+# - A smaller but visible spike at Lag 2
+# - Values drop into the confidence interval (noise region) after Lag 2
 #
-# ---
+# This pattern suggests an **AR(1) or AR(2)** process.
 #
-# **2. AR vs. MA Identification**
+# **Seasonality Check:**
 #
-# If we look at the patterns while keeping the non-stationarity in mind:
-#
-# - **ACF (Left):** Shows a very gradual decay. Following your guidelines, this suggests an **Autoregressive (AR)** component is present
-# - **PACF (Right):** Shows a **sharp cutoff**. There is a very strong spike at Lag 1, followed by a significantly smaller (but still visible) spike at Lag 2, after which the values mostly drop into the blue shaded "noise" region (the confidence interval)
-#
-# > **Conclusion:** This specific combination (Gradual ACF decay + PACF cutoff at Lag 1 or 2) is a textbook indicator of an **AR(1) or AR(2)** process
+# No obvious recurring spikes at regular intervals (e.g., every 12 or 24 lags). The smooth decay suggests that stochastic seasonality is not a dominant feature.
 #
 # ---
 #
-# **3. Seasonality Check**
+# **Conflict Between Diagnostics:**
 #
-# - There are no obvious recurring "spikes" at regular intervals (like a sudden jump at lag 12 or 24)
-# - The decay is smooth, suggesting that **stochastic seasonality is not the dominant feature** here, or it is currently being masked by the strong non-stationary trend
+# The ADF test indicates the series is stationary (p << 0.05), but the ACF shows slow decay typical of non-stationary series. This apparent contradiction occurs because:
 #
-# ---
+# **1. ADF Test Result (Stationary):**
+# - The series has no unit root (does not wander infinitely like a random walk)
+# - The series has a constant mean it eventually returns to
+# - The test detects non-stationarity caused specifically by unit roots
 #
-# **Summary & Recommendation**
+# **2. ACF Slow Decay (Non-Stationary Appearance):**
+# - The series is stationary but has very high persistence
+# - A shock to the system takes a long time to die out (e.g., AR coefficient ~0.95-0.98)
+# - Slow ACF decay can occur in stationary series with high memory
 #
-# Based on these results, your series is currently **non-stationary**.
+# **Resolution:**
 #
-# 1. **Difference the data:** Subtract the previous value from the current value (d = 1)
-# 2. **Re-run the ACF/PACF:** Once differenced, the ACF should drop to zero much faster
-# 3. **Model Selection:** After differencing, if the PACF still shows a sharp cutoff at lag 1 and the ACF decays, an **ARIMA(1, 1, 0)** would be your most likely starting candidate
+# Since the ADF test is highly significant (p << 0.05), the series is statistically stationary. Differencing a series that is already stationary (over-differencing) can harm model performance.
 #
-# **Note:** The blue shaded areas in these plots represent the **95% confidence intervals**. Any bar that extends beyond this shaded area is considered **statistically significant** (meaning the correlation at that lag is likely real, not just random noise).
-
-# %% [markdown]
-# ### 1.4.2 Resolving Conflicting Diagnostics
+# **Recommended Model:**
 #
-# In time series analysis, it's common to encounter **conflicting diagnostics** - where different tests suggest different conclusions about the data. A classic example is when the **ADF test** indicates the series is stationary, but the **ACF plot** shows slow decay typical of non-stationary series.
+# - **d = 0** (no differencing needed)
+# - **p = 1 or 2** (based on PACF cutoff at Lag 1-2)
+# - **q = 0** (ACF shows gradual decay, not sharp cutoff)
 #
-# This section explains how to interpret and resolve such contradictions.
+# Starting models: **ARIMA(1,0,0)** or **ARIMA(2,0,0)**
 #
-# ---
-#
-# **Why the ADF says "Stationary"**
-#
-# The Augmented Dickey-Fuller test checks for a **unit root**. A very low p-value (e.g., p < 0.001) means the test is highly confident that the series does not have a unit root (it doesn't "wander" infinitely like a random walk).
-#
-# - The series likely has a **constant mean** it eventually returns to
-# - There is no stochastic trend that would require differencing to make it mathematically stable
-# - The test is designed to detect non-stationarity caused by unit roots specifically
-#
-# ---
-#
-# **Why the ACF looks "Non-Stationary"**
-#
-# As we observed in the ACF plot, the autocorrelation decays very slowly. This usually happens in two scenarios:
-#
-# 1. **High Persistence:** The series is technically stationary but has a very high "memory." A shock to the system takes a long time to die out (e.g., an AR model with a coefficient like 0.95 or 0.98).
-#
-# 2. **Trend Stationarity:** The series might be stationary around a deterministic trend (like a straight line going up), which the ADF test can sometimes detect as stationary if the "trend" flag is used, even though the ACF looks "laggy."
-#
-# ---
-#
-# **The Verdict: How to Model This**
-#
-# Because the ADF test is so strongly significant (p << 0.05), **you do not need to difference the data** (d = 0). Differencing a series that is already stationary is called "over-differencing" and can actually ruin your model's predictive power.
-#
-# **Recommended ARIMA Path**
-#
-# Since we are keeping the original data (d = 0), we should look back at the **PACF plot**:
-#
-# - The PACF cuts off sharply after Lag 1 or 2
-# - The ACF decays slowly
-#
-# This pattern confirms an **AR(p)** model. Based on the plots and this test, the best starting point is an **ARIMA(1, 0, 0)** or **ARIMA(2, 0, 0)**.
-#
-# ---
-#
-# **Summary Table**
-#
-# | Diagnostic | Result | Meaning |
-# | --- | --- | --- |
-# | **ADF p-value** | Very low (p << 0.05) | No unit root; Data is stationary |
-# | **ACF Pattern** | Slow Decay | High persistence (long memory) |
-# | **PACF Pattern** | Sharp Cutoff | Indicates the order p of the AR component |
-#
-# ---
-#
-# **Key Takeaways:**
-#
-# 1. **Trust the statistical test (ADF) over visual inspection** when there's a conflict about stationarity
-# 2. **Slow ACF decay doesn't always mean non-stationary** - it can indicate high persistence in a stationary series
-# 3. **Avoid over-differencing** - it can introduce unnecessary complexity and harm model performance
-# 4. **Use PACF to determine AR order** when ACF shows slow decay but the series is stationary
-# 5. **Start simple** - ARIMA(1,0,0) or ARIMA(2,0,0) are good initial candidates before trying more complex models
+# The blue shaded areas in the ACF/PACF plots represent 95% confidence intervals. Bars extending beyond this area are statistically significant.
 
 # %% [markdown]
 # ## 1.5 Train/Test Split
@@ -711,9 +658,9 @@ plt.show()
 # - Recommended q: 0 (ACF shows gradual decay, not sharp cutoff)
 #
 # **Data Preparation:**
-# - Train set: July 1 - August 22, 1995 (14,977 observations)
-# - Test set: August 23 - August 31, 1995 (2,879 observations)
-# - Train/test split: 83.9% / 16.1%
+# - Train set: July 1 - August 22, 1995 (15,264 observations)
+# - Test set: August 23 - August 31, 1995 (2,592 observations)
+# - Train/test split: 85.5% / 14.5%
 # - Data ready for ARIMA training: Yes
 #
 # ### Suitability Assessment:
@@ -1370,6 +1317,44 @@ else:
 # - Non-significant coefficients suggest the model may be over-parameterized
 
 # %% [markdown]
+# ## 2.3.1 Save Trained Model
+#
+# We'll save the trained ARIMA model to the `models/` directory for later use in:
+# - The REST API for serving predictions
+# - The dashboard for visualization
+# - Future model comparisons and ensemble methods
+#
+# The model is saved using `joblib`, which is efficient for scikit-learn compatible objects.
+
+# %%
+# Save the trained ARIMA model
+import joblib
+import os
+
+MODELS_DIR = PROJECT_ROOT / "models"
+
+# Create models directory if it doesn't exist
+MODELS_DIR.mkdir(parents=True, exist_ok=True)
+
+# Create descriptive model filename
+model_filename = f"arima_{p}_{d_optimal}_{q}_5m.pkl"
+model_path = MODELS_DIR / model_filename
+
+# Save the model
+joblib.dump(fitted_model, model_path)
+
+# Verify save and print confirmation
+file_size = os.path.getsize(model_path) / 1024  # Size in KB
+print("=" * 60)
+print("MODEL SAVED SUCCESSFULLY")
+print("=" * 60)
+print(f"Model: ARIMA({p}, {d_optimal}, {q})")
+print(f"File: {model_path}")
+print(f"Size: {file_size:.2f} KB")
+print(f"\nTo load the model later:")
+print(f"  loaded_model = joblib.load('{model_path}')")
+
+# %% [markdown]
 # ## 2.4 Model Diagnostics
 #
 # After fitting the model, we need to validate that it meets ARIMA assumptions:
@@ -1453,7 +1438,7 @@ plt.show()
 # - Significant correlations indicate model hasn't captured all patterns
 
 # %% [markdown]
-# ### 2.3.1 Statistical Tests for Residuals
+# ### 2.4.1 Statistical Tests for Residuals
 #
 # We'll perform formal statistical tests to validate model assumptions:
 
@@ -1550,20 +1535,21 @@ print("  - ACF of residuals shows no significant lags")
 # - Manual vs Auto alignment: Auto_arima selected ARIMA(4,0,1), which differs from manual ARIMA(1,0,0) and ARIMA(2,0,0)
 #
 # **Model Fit:**
-# - AIC: 159293.76
-# - BIC: 159347.06
-# - Training samples: 14,977 observations
-# - Log Likelihood: -79639.88
+# - AIC: 162,309.65
+# - BIC: 162,363.08
+# - Training samples: 15,264 observations
+# - Log Likelihood: -81,147.83
 #
 # **Model Comparison:**
-# - Manual A (ARIMA 1,0,0): AIC=162585.96, BIC=162608.80
-# - Manual B (ARIMA 2,0,0): AIC=160965.16, BIC=160995.61
-# - Auto (ARIMA 4,0,1): AIC=159293.76, BIC=159347.06
+# - Manual A (ARIMA 1,0,0): AIC=165,668.50, BIC=165,691.40
+# - Manual B (ARIMA 2,0,0): AIC=164,006.37, BIC=164,036.90
+# - Auto (ARIMA 4,0,1): AIC=162,310.15, BIC=162,363.58
 # - Best model: Auto ARIMA(4,0,1) by AIC (lowest)
 #
 # **Model Diagnostics:**
-# - Residual autocorrelation: Absent (Ljung-Box p-value = 0.677 > 0.05, GOOD)
-# - Residual normality: Not normal (Jarque-Bera p-value = 0.000 < 0.05, BAD)
+# - Residual autocorrelation: Absent (Ljung-Box p-value = 0.450036 > 0.05, GOOD)
+# - Residual normality: Not normal (Jarque-Bera p-value = 0.000000 < 0.05, BAD)
+# - Durbin-Watson: 1.9998 (no autocorrelation, GOOD)
 # - Residual patterns: Residuals are uncorrelated but not normally distributed
 # - Overall model adequacy: Adequate for forecasting, though normality assumption is violated
 #
@@ -1620,13 +1606,12 @@ print(forecast_values.head().to_string())
 # %% [markdown]
 # **Forecast Generation:**
 #
-# The model has generated point forecasts and 95% confidence intervals for the entire test period. The confidence intervals represent the uncertainty in our predictions - wider intervals indicate higher uncertainty.
+# The model has generated point forecasts and 95% confidence intervals for the entire test period. Wider confidence intervals indicate higher uncertainty in predictions.
 #
 # **Key Points:**
 # - **Point forecasts:** Expected value at each time step
 # - **Confidence intervals:** Range of likely values (95% probability)
 # - **Forecast horizon:** Length of test set ({len(test_data)} periods)
-# - **Forecast uncertainty:** Typically increases with forecast horizon
 
 # %% [markdown]
 # ## 3.2 Performance Metrics Calculation
@@ -1662,7 +1647,7 @@ print(f"MAPE: {out_of_sample_metrics['MAPE']:.2f}%")
 # %% [markdown]
 # ## 3.3 Visualization of Forecasts
 #
-# Visual inspection is crucial for understanding forecast quality. We'll create multiple visualizations to assess different aspects of the forecasts.
+# Visual inspection helps assess forecast quality. Multiple visualizations will be created to evaluate different aspects of the forecasts.
 
 # %%
 # Create comprehensive forecast visualization
@@ -1842,7 +1827,7 @@ plt.show()
 # %% [markdown]
 # ## 3.5 Performance by Time Period
 #
-# Let's analyze forecast performance across different time periods to identify patterns or degradation.
+# Forecast performance is analyzed across different time periods to identify patterns or degradation.
 
 # %%
 # Calculate metrics by time period
@@ -1902,7 +1887,7 @@ for period_name, (start, end) in periods.items():
 # %% [markdown]
 # ## 3.6 Model Comparison with Baselines
 #
-# To assess the ARIMA model's value, let's compare it with simple baseline forecasts.
+# The ARIMA model's value is assessed by comparing it with simple baseline forecasts.
 
 # %%
 # Create baseline forecasts
@@ -1985,44 +1970,47 @@ plt.show()
 #
 # ### Overall Model Performance:
 #
-# **Forecast Accuracy:**
-# - RMSE: {out_of_sample_metrics['RMSE']:.2f}
-# - MAE: {out_of_sample_metrics['MAE']:.2f}
-# - MAPE: {out_of_sample_metrics['MAPE']:.2f}%
+# **Forecast Accuracy (Out-of-Sample):**
+# - RMSE: 123.04
+# - MAE: 97.22
+# - MAPE: 79.03%
 #
 # **Model Generalization:**
-# - In-sample RMSE: {in_sample_metrics['RMSE']:.2f}
-# - Out-of-sample RMSE: {out_of_sample_metrics['RMSE']:.2f}
-# - Ratio: {out_of_sample_metrics['RMSE']/in_sample_metrics['RMSE']:.2f}
-# - Assessment: [Good/Moderate/Poor] generalization
+# - In-sample RMSE: 49.27
+# - Out-of-sample RMSE: 123.04
+# - Ratio: 2.50
+# - Assessment: Poor generalization
 #
 # **Comparison with Baselines:**
-# - vs Naive: {naive_improvement_rmse:+.1f}% RMSE improvement
-# - vs Mean: {mean_improvement_rmse:+.1f}% RMSE improvement
-# - ARIMA adds value: [Yes/No]
+# - vs Naive: +11.5% RMSE improvement
+# - vs Mean: +0.1% RMSE improvement
+# - ARIMA adds value: Marginally
 #
 # **Residual Analysis:**
-# - Residual mean: {forecast_residuals.mean():.4f} (should be ~0)
-# - Residual autocorrelation: [Present/Absent]
-# - Residual normality: [Approximately normal/Not normal]
-# - Model assumptions: [Satisfied/Violated]
+# - Residual mean: 14.1784 (should be ~0, indicates slight bias)
+# - Residual autocorrelation: Present
+# - Residual normality: Not normal
+# - Model assumptions: Partially violated
 #
 # ### Suitability for Production:
 #
-# **Is ARIMA suitable for this traffic forecasting task?**
+# **Suitability Assessment:**
 #
 # **Strengths:**
-# - [List strengths based on analysis]
-# - [e.g., Captures daily patterns, interpretable parameters, fast inference]
+# - Provides better performance than the naive baseline (+11.5% RMSE improvement).
+# - Captures some underlying trends in the data better than a static mean.
+# - Statistical foundation allows for confidence interval calculation.
 #
 # **Weaknesses:**
-# - [List weaknesses based on analysis]
-# - [e.g., Struggles with sudden spikes, linear assumptions, limited non-linear patterns]
+# - Poor generalization (Ratio 2.50) indicates significant overfitting to training data.
+# - Barely outperforms the simple Mean Forecast (+0.1% improvement), suggesting limited predictive power.
+# - Residuals show bias (non-zero mean) and significant autocorrelation.
+# - High MAPE (79.03%) makes it unreliable for precise capacity planning.
 #
 # **Recommendation:**
-# - [Deploy/Do not deploy] ARIMA model in production
-# - [If deploy: With what monitoring and fallback mechanisms?]
-# - [If not deploy: What improvements are needed?]
+# - **Do not deploy** the current ARIMA(4,0,1) model in production.
+# - The model does not provide sufficient accuracy improvement over simple baselines to justify its complexity.
+# - Evaluation of more advanced models (Prophet, LSTM) is required.
 #
 # ### Recommendations for Improvement:
 #
@@ -2046,4 +2034,4 @@ plt.show()
 #
 # ### Final Conclusion:
 #
-# The ARIMA({p}, {d_optimal}, {q}) model [achieved/failed to achieve] acceptable forecasting performance for the NASA server traffic data. The model [is/is not] recommended for production use [with/without] further improvements and monitoring.
+# The ARIMA(4, 0, 1) model failed to achieve acceptable forecasting performance for the NASA server traffic data. The model is not recommended for production use without further improvements and comparison with more advanced techniques.
