@@ -553,7 +553,7 @@ plt.show()
 # 5. **Start simple** - ARIMA(1,0,0) or ARIMA(2,0,0) are good initial candidates before trying more complex models
 
 # %% [markdown]
-# ## 1.6 Train/Test Split
+# ## 1.5 Train/Test Split
 #
 # For evaluating our ARIMA model's performance, we need to split the data into training and testing sets:
 #
@@ -625,7 +625,7 @@ plt.show()
 # This split ensures our model is evaluated on truly unseen future data, simulating real-world forecasting scenarios.
 
 # %% [markdown]
-# ## 1.7 Section 1 Summary and Conclusions
+# ## 1.6 Section 1 Summary and Conclusions
 #
 # ### Key Findings from Pre-train Analysis:
 #
@@ -665,10 +665,932 @@ plt.show()
 # 5. Generate forecasts and assess performance in Section 3
 
 # %% [markdown]
+# # Section 2: Training
+#
+# In this section, we will:
+# 1. Use automatic parameter selection (auto_arima) to find optimal (p,d,q) parameters
+# 2. Fit the ARIMA model on training data
+# 3. Perform model diagnostics to validate assumptions
+# 4. Compare multiple models if necessary
+#
+# The goal is to build a well-specified ARIMA model that captures the underlying patterns in the traffic data.
+
+# %% [markdown]
+# ## 2.1 Automatic ARIMA Parameter Selection
+#
+# Instead of manually selecting (p,d,q) parameters based on ACF/PACF analysis, we'll use **auto_arima** from the pmdarima library. This automated approach:
+#
+# - Searches through a grid of parameter combinations
+# - Uses information criteria (AIC, BIC) to select the best model
+# - Handles seasonal components automatically (if needed)
+# - Is more objective than manual selection
+#
+# **Parameters for auto_arima:**
+# - `start_p`, `start_q`: Starting values for p and q
+# - `max_p`, `max_q`: Maximum values to search
+# - `d`: Differencing order (from Section 1.3.3)
+# - `seasonal`: Whether to include seasonal components
+# - `trace`: Print progress during search
+# - `stepwise`: Use stepwise algorithm for faster search
+
+# %%
+print("=" * 60)
+print("AUTOMATIC ARIMA PARAMETER SELECTION")
+print("=" * 60)
+print(f"\nUsing d = {d} (from stationarity analysis)")
+print("Searching for optimal (p, q) parameters...")
+
+# Perform auto_arima search
+auto_model = auto_arima(
+    train_data,
+    start_p=0,
+    start_q=0,
+    max_p=5,
+    max_q=5,
+    d=d,
+    seasonal=False,  # We'll handle seasonality manually if needed
+    trace=True,
+    stepwise=True,
+    suppress_warnings=True,
+    information_criterion='aic'
+)
+
+# Extract optimal parameters
+p = auto_model.order[0]
+d_optimal = auto_model.order[1]
+q = auto_model.order[2]
+
+print("\n" + "=" * 60)
+print("OPTIMAL PARAMETERS FOUND")
+print("=" * 60)
+print(f"ARIMA({p}, {d_optimal}, {q})")
+print(f"AIC: {auto_model.aic():.2f}")
+print(f"BIC: {auto_model.bic():.2f}")
+print(f"Training samples: {len(train_data)}")
+
+# %% [markdown]
+# **Auto-ARIMA Results:**
+#
+# The auto_arima function has searched through combinations of (p,d,q) parameters and selected the best model based on the **Akaike Information Criterion (AIC)**.
+#
+# **Interpretation:**
+# - **AIC (Akaike Information Criterion):** Measures model quality while penalizing complexity. Lower AIC = better model.
+# - **BIC (Bayesian Information Criterion):** Similar to AIC but with stronger penalty for complexity.
+# - **Stepwise search:** Efficiently explores the parameter space without testing every combination.
+#
+# The selected ARIMA(p,d,q) model balances goodness-of-fit with model complexity, helping to avoid overfitting.
+
+# %% [markdown]
+# ## 2.2 Model Fitting
+#
+# Now we'll fit the ARIMA model using the optimal parameters found by auto_arima. We'll use the statsmodels ARIMA implementation, which provides:
+#
+# - Maximum likelihood estimation of parameters
+# - Comprehensive diagnostic information
+# - Forecasting capabilities
+# - Residual analysis tools
+
+# %%
+print("=" * 60)
+print("FITTING ARIMA MODEL")
+print("=" * 60)
+print(f"Model: ARIMA({p}, {d_optimal}, {q})")
+print(f"Training data: {len(train_data)} observations")
+print(f"Date range: {train_data.index.min()} to {train_data.index.max()}")
+
+# Fit ARIMA model using statsmodels
+model = ARIMA(train_data, order=(p, d_optimal, q))
+fitted_model = model.fit()
+
+# Print model summary
+print("\n" + "=" * 60)
+print("MODEL SUMMARY")
+print("=" * 60)
+print(fitted_model.summary())
+
+# Extract model parameters
+ar_params = fitted_model.arparams if hasattr(fitted_model, 'arparams') else []
+ma_params = fitted_model.maparams if hasattr(fitted_model, 'maparams') else []
+
+print("\n" + "=" * 60)
+print("MODEL PARAMETERS")
+print("=" * 60)
+if len(ar_params) > 0:
+    print(f"AR coefficients: {ar_params}")
+else:
+    print("AR coefficients: None (p=0)")
+if len(ma_params) > 0:
+    print(f"MA coefficients: {ma_params}")
+else:
+    print("MA coefficients: None (q=0)")
+
+# %% [markdown]
+# **Model Summary Interpretation:**
+#
+# The model summary provides detailed information about the fitted ARIMA model:
+#
+# **Key Components:**
+# - **coef:** Estimated coefficients for AR and MA terms
+# - **std err:** Standard error of coefficient estimates
+# - **z:** z-statistic (coef / std err)
+# - **P>|z|:** p-value for testing if coefficient is zero
+# - **[0.025 0.975]:** 95% confidence interval for coefficients
+#
+# **Model Diagnostics:**
+# - **Ljung-Box (L1):** Test for residual autocorrelation (p > 0.05 is good)
+# - **Jarque-Bera (JB):** Test for normality of residuals (p > 0.05 is good)
+# - **Heteroskedasticity (H):** Test for constant variance (p > 0.05 is good)
+# - **AIC/BIC:** Information criteria for model comparison
+#
+# **Coefficient Significance:**
+# - Coefficients with p-value < 0.05 are statistically significant
+# - Non-significant coefficients suggest the model may be over-parameterized
+
+# %% [markdown]
+# ## 2.3 Model Diagnostics
+#
+# After fitting the model, we need to validate that it meets ARIMA assumptions:
+#
+# 1. **Residuals are white noise:** No autocorrelation in residuals
+# 2. **Residuals are normally distributed:** For valid confidence intervals
+# 3. **Residuals have constant variance:** Homoscedasticity
+# 4. **No patterns in residuals:** Model has captured all systematic patterns
+#
+# We'll use visual and statistical tests to assess these assumptions.
+
+# %%
+# Calculate residuals
+residuals = fitted_model.resid
+
+print("=" * 60)
+print("RESIDUAL ANALYSIS")
+print("=" * 60)
+print(f"Mean: {residuals.mean():.4f}")
+print(f"Std Dev: {residuals.std():.4f}")
+print(f"Min: {residuals.min():.4f}")
+print(f"Max: {residuals.max():.4f}")
+
+# Create diagnostic plots
+fig, axes = plt.subplots(2, 2, figsize=(16, 12))
+
+# 1. Residuals time series
+axes[0, 0].plot(train_data.index[1:], residuals, color='#1f77b4', linewidth=0.8)
+axes[0, 0].axhline(y=0, color='red', linestyle='--', linewidth=1)
+axes[0, 0].set_title('Residuals Over Time', fontsize=12, fontweight='bold')
+axes[0, 0].set_xlabel('Date', fontsize=10)
+axes[0, 0].set_ylabel('Residual', fontsize=10)
+axes[0, 0].grid(True, alpha=0.3)
+
+# 2. Residuals histogram
+axes[0, 1].hist(residuals, bins=50, color='#1f77b4', alpha=0.7, edgecolor='black')
+axes[0, 1].axvline(x=residuals.mean(), color='red', linestyle='--', linewidth=2, label=f'Mean: {residuals.mean():.2f}')
+axes[0, 1].set_title('Residuals Distribution', fontsize=12, fontweight='bold')
+axes[0, 1].set_xlabel('Residual', fontsize=10)
+axes[0, 1].set_ylabel('Frequency', fontsize=10)
+axes[0, 1].legend()
+axes[0, 1].grid(True, alpha=0.3, axis='y')
+
+# 3. Q-Q plot for normality
+from scipy import stats
+stats.probplot(residuals, dist="norm", plot=axes[1, 0])
+axes[1, 0].set_title('Q-Q Plot - Normality Test', fontsize=12, fontweight='bold')
+axes[1, 0].grid(True, alpha=0.3)
+
+# 4. ACF of residuals
+plot_acf(residuals, lags=50, ax=axes[1, 1], alpha=0.05)
+axes[1, 1].set_title('ACF of Residuals', fontsize=12, fontweight='bold')
+axes[1, 1].set_xlabel('Lag', fontsize=10)
+axes[1, 1].set_ylabel('Correlation', fontsize=10)
+axes[1, 1].grid(True, alpha=0.3, linestyle='--')
+
+plt.tight_layout()
+plt.show()
+
+# %% [markdown]
+# **Figure 6: Model Diagnostics**
+#
+# **Panel 1 - Residuals Over Time:**
+# - Shows residuals throughout the training period
+# - Should fluctuate randomly around zero (no patterns)
+# - Red dashed line at zero for reference
+#
+# **Panel 2 - Residuals Distribution:**
+# - Histogram of residual values
+# - Should be approximately normal (bell-shaped)
+# - Mean should be close to zero
+#
+# **Panel 3 - Q-Q Plot:**
+# - Quantile-Quantile plot for normality
+# - Points should fall along the red diagonal line
+# - Deviations indicate non-normality
+#
+# **Panel 4 - ACF of Residuals:**
+# - Autocorrelation of residuals
+# - Should show no significant correlations (all bars within blue shaded area)
+# - Significant correlations indicate model hasn't captured all patterns
+
+# %% [markdown]
+# ### 2.3.1 Statistical Tests for Residuals
+#
+# We'll perform formal statistical tests to validate model assumptions:
+
+# %%
+print("=" * 60)
+print("STATISTICAL TESTS FOR RESIDUALS")
+print("=" * 60)
+
+# 1. Ljung-Box test for autocorrelation
+from statsmodels.stats.diagnostic import acorr_ljungbox
+lb_test = acorr_ljungbox(residuals, lags=[10], return_df=True)
+lb_pvalue = lb_test['lb_pvalue'].iloc[0]
+
+print("\n1. Ljung-Box Test (Autocorrelation)")
+print(f"   p-value: {lb_pvalue:.6f}")
+if lb_pvalue > 0.05:
+    print("   ✓ p-value > 0.05: Residuals are uncorrelated (GOOD)")
+else:
+    print("   ✗ p-value ≤ 0.05: Residuals show autocorrelation (BAD)")
+
+# 2. Jarque-Bera test for normality
+from scipy.stats import jarque_bera
+jb_stat, jb_pvalue = jarque_bera(residuals)
+
+print("\n2. Jarque-Bera Test (Normality)")
+print(f"   Statistic: {jb_stat:.4f}")
+print(f"   p-value: {jb_pvalue:.6f}")
+if jb_pvalue > 0.05:
+    print("   ✓ p-value > 0.05: Residuals are normally distributed (GOOD)")
+else:
+    print("   ✗ p-value ≤ 0.05: Residuals are not normally distributed (BAD)")
+
+# 3. Shapiro-Wilk test for normality (smaller sample)
+if len(residuals) < 5000:
+    from scipy.stats import shapiro
+    sw_stat, sw_pvalue = shapiro(residuals)
+    print("\n3. Shapiro-Wilk Test (Normality)")
+    print(f"   Statistic: {sw_stat:.4f}")
+    print(f"   p-value: {sw_pvalue:.6f}")
+    if sw_pvalue > 0.05:
+        print("   ✓ p-value > 0.05: Residuals are normally distributed (GOOD)")
+    else:
+        print("   ✗ p-value ≤ 0.05: Residuals are not normally distributed (BAD)")
+
+# 4. Durbin-Watson test for autocorrelation
+from statsmodels.stats.stattools import durbin_watson
+dw_stat = durbin_watson(residuals)
+
+print("\n4. Durbin-Watson Test (Autocorrelation)")
+print(f"   Statistic: {dw_stat:.4f}")
+if 1.5 < dw_stat < 2.5:
+    print("   ✓ 1.5 < DW < 2.5: No significant autocorrelation (GOOD)")
+else:
+    print("   ✗ DW outside [1.5, 2.5]: Possible autocorrelation (BAD)")
+
+print("\n" + "=" * 60)
+print("DIAGNOSTIC SUMMARY")
+print("=" * 60)
+print("The model is considered adequate if:")
+print("  - Residuals are uncorrelated (Ljung-Box p > 0.05)")
+print("  - Residuals are approximately normal (JB p > 0.05)")
+print("  - No patterns in residual plots")
+print("  - ACF of residuals shows no significant lags")
+
+# %% [markdown]
+# **Statistical Test Interpretation:**
+#
+# **Ljung-Box Test:**
+# - Tests whether residuals are white noise (no autocorrelation)
+# - Null hypothesis: Residuals are uncorrelated
+# - p-value > 0.05: Cannot reject null → Good model fit
+#
+# **Jarque-Bera Test:**
+# - Tests whether residuals are normally distributed
+# - Null hypothesis: Residuals are normally distributed
+# - p-value > 0.05: Cannot reject null → Normality assumption holds
+#
+# **Durbin-Watson Test:**
+# - Tests for first-order autocorrelation
+# - Statistic close to 2.0: No autocorrelation
+# - Values < 1.5 or > 2.5: Possible autocorrelation
+#
+# **Note:** Some deviation from normality is common in real-world data and doesn't necessarily invalidate the model, especially if other diagnostics are good.
+
+# %% [markdown]
+# ## 2.4 In-Sample Performance
+#
+# Before testing on unseen data, let's evaluate how well the model fits the training data (in-sample performance). This gives us a baseline for comparison.
+
+# %%
+# Get in-sample predictions
+fitted_values = fitted_model.fittedvalues
+
+# Calculate in-sample metrics
+from sklearn.metrics import mean_squared_error, mean_absolute_error
+
+def calculate_metrics(actual, predicted):
+    """Calculate evaluation metrics."""
+    mse = mean_squared_error(actual, predicted)
+    rmse = np.sqrt(mse)
+    mae = mean_absolute_error(actual, predicted)
+    
+    # MAPE (avoid division by zero)
+    mask = actual != 0
+    mape = np.mean(np.abs((actual[mask] - predicted[mask]) / actual[mask])) * 100
+    
+    return {
+        'MSE': mse,
+        'RMSE': rmse,
+        'MAE': mae,
+        'MAPE': mape
+    }
+
+in_sample_metrics = calculate_metrics(train_data[d_optimal:], fitted_values)
+
+print("=" * 60)
+print("IN-SAMPLE PERFORMANCE (Training Data)")
+print("=" * 60)
+print(f"MSE:  {in_sample_metrics['MSE']:.2f}")
+print(f"RMSE: {in_sample_metrics['RMSE']:.2f}")
+print(f"MAE:  {in_sample_metrics['MAE']:.2f}")
+print(f"MAPE: {in_sample_metrics['MAPE']:.2f}%")
+
+# Plot in-sample fit
+fig, ax = plt.subplots(figsize=(16, 6))
+
+ax.plot(train_data.index, train_data, label='Actual Data',
+        color='#1f77b4', linewidth=0.8, alpha=0.7)
+ax.plot(fitted_values.index, fitted_values, label='Fitted Values',
+        color='orange', linewidth=1.5, alpha=0.9)
+
+# Highlight system downtime
+ax.axvspan(downtime_start, downtime_end, color='red', alpha=0.1)
+
+# Formatting
+ax.set_title('In-Sample Fit: Actual vs Fitted Values', fontsize=14, fontweight='bold')
+ax.set_xlabel('Date', fontsize=12)
+ax.set_ylabel('Number of Requests', fontsize=12)
+ax.legend(loc='upper left')
+ax.grid(True, alpha=0.3)
+
+plt.tight_layout()
+plt.show()
+
+# %% [markdown]
+# **Figure 7: In-Sample Model Fit**
+#
+# - **Blue line:** Actual training data
+# - **Orange line:** Model fitted values
+# - **Light red shaded area:** Server outage period (August 1-3, 1995)
+#
+# **Interpretation:**
+# - Good fit: Orange line closely follows blue line
+# - Poor fit: Large deviations between actual and fitted values
+# - Note: In-sample performance is typically better than out-of-sample performance
+#
+# **Metrics:**
+# - **MSE (Mean Squared Error):** Average of squared errors (penalizes large errors)
+# - **RMSE (Root Mean Squared Error):** Square root of MSE (same units as data)
+# - **MAE (Mean Absolute Error):** Average absolute error (more robust to outliers)
+# - **MAPE (Mean Absolute Percentage Error):** Average percentage error (scale-independent)
+
+# %% [markdown]
+# ## 2.5 Section 2 Summary and Conclusions
+#
+# ### Model Training Results:
+#
+# **Parameter Selection:**
+# - Optimal ARIMA model: ARIMA({p}, {d_optimal}, {q})
+# - Selection method: auto_arima with AIC criterion
+# - Model complexity: Balanced fit and simplicity
+#
+# **Model Fit:**
+# - AIC: {auto_model.aic():.2f}
+# - BIC: {auto_model.bic():.2f}
+# - Training samples: {len(train_data)} observations
+#
+# **Model Diagnostics:**
+# - Residual autocorrelation: [Based on Ljung-Box test]
+# - Residual normality: [Based on Jarque-Bera test]
+# - Residual patterns: [Based on visual inspection]
+# - Overall model adequacy: [Adequate/Needs improvement]
+#
+# **In-Sample Performance:**
+# - RMSE: {in_sample_metrics['RMSE']:.2f}
+# - MAE: {in_sample_metrics['MAE']:.2f}
+# - MAPE: {in_sample_metrics['MAPE']:.2f}%
+#
+# ### Suitability Assessment:
+#
+# **Is the model ready for forecasting?**
+# - [Yes/No] - Based on diagnostic tests
+# - [If no, what improvements are needed?]
+# - [If yes, proceed to Section 3]
+#
+# ### Next Steps:
+#
+# 1. Proceed to Section 3: Post-train Evaluation
+# 2. Generate forecasts on test data
+# 3. Calculate out-of-sample performance metrics
+# 4. Compare actual vs predicted values
+# 5. Analyze forecast errors and residuals
+# 6. Draw final conclusions and recommendations
+
+# %% [markdown]
+# # Section 3: Post-train Evaluation
+#
+# In this section, we will:
+# 1. Generate forecasts on the test set (unseen data)
+# 2. Calculate out-of-sample performance metrics (RMSE, MSE, MAE, MAPE)
+# 3. Visualize actual vs predicted values
+# 4. Analyze forecast errors and residuals
+# 5. Compare performance across different time periods
+# 6. Draw conclusions and provide recommendations
+#
+# The goal is to assess how well the ARIMA model generalizes to new data and whether it's suitable for production use.
+
+# %% [markdown]
+# ## 3.1 Forecast Generation
+#
+# We'll generate forecasts for the test period using the fitted ARIMA model. The forecast horizon is the length of the test set.
+
+# %%
+print("=" * 60)
+print("FORECAST GENERATION")
+print("=" * 60)
+print(f"Model: ARIMA({p}, {d_optimal}, {q})")
+print(f"Test set size: {len(test_data)} observations")
+print(f"Forecast horizon: {len(test_data)} periods")
+
+# Generate forecasts
+forecast_result = fitted_model.get_forecast(steps=len(test_data))
+forecast_values = forecast_result.predicted_mean
+forecast_conf_int = forecast_result.conf_int()
+
+print(f"\n✓ Forecast generated successfully")
+print(f"✓ Forecast period: {test_data.index.min()} to {test_data.index.max()}")
+print(f"✓ Confidence intervals calculated (95%)")
+
+# Display first few forecasts
+print("\n" + "=" * 60)
+print("FORECAST SAMPLE (First 5 values)")
+print("=" * 60)
+print(forecast_values.head().to_string())
+
+# %% [markdown]
+# **Forecast Generation:**
+#
+# The model has generated point forecasts and 95% confidence intervals for the entire test period. The confidence intervals represent the uncertainty in our predictions - wider intervals indicate higher uncertainty.
+#
+# **Key Points:**
+# - **Point forecasts:** Expected value at each time step
+# - **Confidence intervals:** Range of likely values (95% probability)
+# - **Forecast horizon:** Length of test set ({len(test_data)} periods)
+# - **Forecast uncertainty:** Typically increases with forecast horizon
+
+# %% [markdown]
+# ## 3.2 Performance Metrics Calculation
+#
+# We'll calculate the four required evaluation metrics to assess forecast accuracy:
+#
+# 1. **RMSE (Root Mean Squared Error):** Penalizes large errors heavily
+# 2. **MSE (Mean Squared Error):** Average of squared errors
+# 3. **MAE (Mean Absolute Error):** Average absolute error (robust to outliers)
+# 4. **MAPE (Mean Absolute Percentage Error):** Scale-independent percentage error
+
+# %%
+# Calculate out-of-sample metrics
+out_of_sample_metrics = calculate_metrics(test_data, forecast_values)
+
+print("=" * 60)
+print("OUT-OF-SAMPLE PERFORMANCE (Test Data)")
+print("=" * 60)
+print(f"MSE:  {out_of_sample_metrics['MSE']:.2f}")
+print(f"RMSE: {out_of_sample_metrics['RMSE']:.2f}")
+print(f"MAE:  {out_of_sample_metrics['MAE']:.2f}")
+print(f"MAPE: {out_of_sample_metrics['MAPE']:.2f}%")
+
+# Compare in-sample vs out-of-sample
+print("\n" + "=" * 60)
+print("PERFORMANCE COMPARISON")
+print("=" * 60)
+print(f"{'Metric':<10} {'In-Sample':<15} {'Out-of-Sample':<15} {'Ratio':<10}")
+print("-" * 60)
+print(f"{'MSE':<10} {in_sample_metrics['MSE']:<15.2f} {out_of_sample_metrics['MSE']:<15.2f} {out_of_sample_metrics['MSE']/in_sample_metrics['MSE']:<10.2f}")
+print(f"{'RMSE':<10} {in_sample_metrics['RMSE']:<15.2f} {out_of_sample_metrics['RMSE']:<15.2f} {out_of_sample_metrics['RMSE']/in_sample_metrics['RMSE']:<10.2f}")
+print(f"{'MAE':<10} {in_sample_metrics['MAE']:<15.2f} {out_of_sample_metrics['MAE']:<15.2f} {out_of_sample_metrics['MAE']/in_sample_metrics['MAE']:<10.2f}")
+print(f"{'MAPE':<10} {in_sample_metrics['MAPE']:<15.2f} {out_of_sample_metrics['MAPE']:<15.2f} {out_of_sample_metrics['MAPE']/in_sample_metrics['MAPE']:<10.2f}")
+
+print("\n" + "=" * 60)
+print("INTERPRETATION")
+print("=" * 60)
+print("Ratio < 1.5: Good generalization (model not overfitting)")
+print("Ratio 1.5-2.0: Moderate generalization (some overfitting)")
+print("Ratio > 2.0: Poor generalization (significant overfitting)")
+
+# %% [markdown]
+# **Performance Metrics Interpretation:**
+#
+# **Metric Definitions:**
+# - **MSE:** Mean of (actual - predicted)² - heavily penalizes large errors
+# - **RMSE:** √MSE - same units as the data, easier to interpret
+# - **MAE:** Mean of |actual - predicted| - robust to outliers
+# - **MAPE:** Mean of |(actual - predicted)/actual| × 100 - scale-independent
+#
+# **In-Sample vs Out-of-Sample:**
+# - In-sample performance is typically better (model saw this data during training)
+# - Out-of-sample performance is the true measure of generalization
+# - Large gap between in-sample and out-of-sample indicates overfitting
+#
+# **Benchmark for Success:**
+# - Good models have out-of-sample RMSE close to in-sample RMSE
+# - Ratio < 1.5 indicates good generalization
+# - MAPE < 20% is generally acceptable for many applications
+
+# %% [markdown]
+# ## 3.3 Visualization of Forecasts
+#
+# Visual inspection is crucial for understanding forecast quality. We'll create multiple visualizations to assess different aspects of the forecasts.
+
+# %%
+# Create comprehensive forecast visualization
+fig, axes = plt.subplots(3, 1, figsize=(16, 14))
+
+# Plot 1: Full forecast period
+axes[0].plot(train_data.index, train_data, label='Training Data',
+             color='#1f77b4', linewidth=0.8, alpha=0.7)
+axes[0].plot(test_data.index, test_data, label='Actual Test Data',
+             color='#2ca02c', linewidth=0.8)
+axes[0].plot(forecast_values.index, forecast_values, label='Forecast',
+             color='red', linewidth=1.5, linestyle='--')
+
+# Add confidence intervals
+axes[0].fill_between(forecast_values.index,
+                     forecast_conf_int.iloc[:, 0],
+                     forecast_conf_int.iloc[:, 1],
+                     color='red', alpha=0.2, label='95% Confidence Interval')
+
+# Mark the split point
+axes[0].axvline(train_end_date, color='black', linestyle='-', linewidth=2,
+                label='Train/Test Split')
+
+# Highlight system downtime
+axes[0].axvspan(downtime_start, downtime_end, color='red', alpha=0.1)
+
+# Formatting
+axes[0].set_title('ARIMA Forecast: Full Test Period', fontsize=14, fontweight='bold')
+axes[0].set_xlabel('Date', fontsize=12)
+axes[0].set_ylabel('Number of Requests', fontsize=12)
+axes[0].legend(loc='upper left')
+axes[0].grid(True, alpha=0.3)
+
+# Plot 2: First week of forecast (zoom in)
+first_week_end = test_start_date + pd.Timedelta(days=7)
+first_week_mask = test_data.index <= first_week_end
+
+axes[1].plot(train_data.index[train_data.index >= (first_week_end - pd.Timedelta(days=7))],
+             train_data[train_data.index >= (first_week_end - pd.Timedelta(days=7))],
+             label='Training Data', color='#1f77b4', linewidth=0.8, alpha=0.7)
+axes[1].plot(test_data.index[first_week_mask], test_data[first_week_mask],
+             label='Actual Test Data', color='#2ca02c', linewidth=0.8)
+axes[1].plot(forecast_values.index[first_week_mask], forecast_values[first_week_mask],
+             label='Forecast', color='red', linewidth=1.5, linestyle='--')
+axes[1].fill_between(forecast_values.index[first_week_mask],
+                     forecast_conf_int.iloc[:, 0][first_week_mask],
+                     forecast_conf_int.iloc[:, 1][first_week_mask],
+                     color='red', alpha=0.2, label='95% Confidence Interval')
+axes[1].axvline(train_end_date, color='black', linestyle='-', linewidth=2)
+
+axes[1].set_title('ARIMA Forecast: First Week (Zoom In)', fontsize=14, fontweight='bold')
+axes[1].set_xlabel('Date', fontsize=12)
+axes[1].set_ylabel('Number of Requests', fontsize=12)
+axes[1].legend(loc='upper left')
+axes[1].grid(True, alpha=0.3)
+
+# Plot 3: Forecast errors
+forecast_errors = test_data - forecast_values
+
+axes[2].plot(forecast_errors.index, forecast_errors, color='purple', linewidth=0.8)
+axes[2].axhline(y=0, color='black', linestyle='--', linewidth=1)
+axes[2].axhline(y=out_of_sample_metrics['MAE'], color='red', linestyle='--',
+                linewidth=1, label=f'MAE: {out_of_sample_metrics["MAE"]:.2f}')
+axes[2].axhline(y=-out_of_sample_metrics['MAE'], color='red', linestyle='--', linewidth=1)
+
+axes[2].set_title('Forecast Errors (Actual - Predicted)', fontsize=14, fontweight='bold')
+axes[2].set_xlabel('Date', fontsize=12)
+axes[2].set_ylabel('Error', fontsize=12)
+axes[2].legend(loc='upper left')
+axes[2].grid(True, alpha=0.3)
+
+plt.tight_layout()
+plt.show()
+
+# %% [markdown]
+# **Figure 8: Comprehensive Forecast Visualization**
+#
+# **Panel 1 - Full Test Period:**
+# - Blue: Training data
+# - Green: Actual test data
+# - Red dashed: Forecast
+# - Red shaded: 95% confidence interval
+# - Black line: Train/test split point
+#
+# **Panel 2 - First Week (Zoom):**
+# - Closer view of initial forecast period
+# - Shows short-term forecast accuracy
+# - Confidence intervals typically narrower for short-term forecasts
+#
+# **Panel 3 - Forecast Errors:**
+# - Purple line: Actual - Predicted at each time step
+# - Black dashed line: Zero error (perfect forecast)
+# - Red dashed lines: ±MAE bounds
+# - Errors should be randomly distributed around zero
+
+# %% [markdown]
+# ## 3.4 Residual Analysis for Forecasts
+#
+# Analyzing forecast residuals (errors) helps identify systematic patterns and potential improvements.
+
+# %%
+# Calculate forecast residuals
+forecast_residuals = test_data - forecast_values
+
+print("=" * 60)
+print("FORECAST RESIDUAL STATISTICS")
+print("=" * 60)
+print(f"Mean: {forecast_residuals.mean():.4f}")
+print(f"Std Dev: {forecast_residuals.std():.4f}")
+print(f"Min: {forecast_residuals.min():.4f}")
+print(f"Max: {forecast_residuals.max():.4f}")
+print(f"Skewness: {forecast_residuals.skew():.4f}")
+print(f"Kurtosis: {forecast_residuals.kurtosis():.4f}")
+
+# Create residual analysis plots
+fig, axes = plt.subplots(2, 2, figsize=(16, 10))
+
+# 1. Residuals time series
+axes[0, 0].plot(forecast_residuals.index, forecast_residuals,
+                color='#1f77b4', linewidth=0.8)
+axes[0, 0].axhline(y=0, color='red', linestyle='--', linewidth=1)
+axes[0, 0].set_title('Forecast Residuals Over Time', fontsize=12, fontweight='bold')
+axes[0, 0].set_xlabel('Date', fontsize=10)
+axes[0, 0].set_ylabel('Residual', fontsize=10)
+axes[0, 0].grid(True, alpha=0.3)
+
+# 2. Residuals histogram
+axes[0, 1].hist(forecast_residuals, bins=50, color='#1f77b4',
+                alpha=0.7, edgecolor='black')
+axes[0, 1].axvline(x=forecast_residuals.mean(), color='red',
+                   linestyle='--', linewidth=2, label=f'Mean: {forecast_residuals.mean():.2f}')
+axes[0, 1].set_title('Residuals Distribution', fontsize=12, fontweight='bold')
+axes[0, 1].set_xlabel('Residual', fontsize=10)
+axes[0, 1].set_ylabel('Frequency', fontsize=10)
+axes[0, 1].legend()
+axes[0, 1].grid(True, alpha=0.3, axis='y')
+
+# 3. Q-Q plot
+stats.probplot(forecast_residuals, dist="norm", plot=axes[1, 0])
+axes[1, 0].set_title('Q-Q Plot - Normality Test', fontsize=12, fontweight='bold')
+axes[1, 0].grid(True, alpha=0.3)
+
+# 4. ACF of residuals
+plot_acf(forecast_residuals, lags=50, ax=axes[1, 1], alpha=0.05)
+axes[1, 1].set_title('ACF of Forecast Residuals', fontsize=12, fontweight='bold')
+axes[1, 1].set_xlabel('Lag', fontsize=10)
+axes[1, 1].set_ylabel('Correlation', fontsize=10)
+axes[1, 1].grid(True, alpha=0.3, linestyle='--')
+
+plt.tight_layout()
+plt.show()
+
+# %% [markdown]
+# **Figure 9: Forecast Residual Analysis**
+#
+# **Panel 1 - Residuals Over Time:**
+# - Should fluctuate randomly around zero
+# - No patterns or trends should be visible
+# - Constant variance (homoscedasticity)
+#
+# **Panel 2 - Residuals Distribution:**
+# - Should be approximately normal (bell-shaped)
+# - Mean should be close to zero (unbiased forecasts)
+# - Symmetric distribution indicates unbiased predictions
+#
+# **Panel 3 - Q-Q Plot:**
+# - Points should fall along the diagonal line
+# - Deviations indicate non-normality
+# - Heavy tails may indicate outliers
+#
+# **Panel 4 - ACF of Residuals:**
+# - Should show no significant autocorrelation
+# - All bars should be within blue shaded area
+# - Significant correlations indicate model hasn't captured all patterns
+
+# %% [markdown]
+# ## 3.5 Performance by Time Period
+#
+# Let's analyze forecast performance across different time periods to identify patterns or degradation.
+
+# %%
+# Calculate metrics by time period
+periods = {
+    'First Week': (test_start_date, test_start_date + pd.Timedelta(days=7)),
+    'First 2 Weeks': (test_start_date, test_start_date + pd.Timedelta(days=14)),
+    'Full Period': (test_start_date, test_data.index.max())
+}
+
+print("=" * 60)
+print("PERFORMANCE BY TIME PERIOD")
+print("=" * 60)
+
+for period_name, (start, end) in periods.items():
+    mask = (test_data.index >= start) & (test_data.index <= end)
+    period_actual = test_data[mask]
+    period_forecast = forecast_values[mask]
+    
+    period_metrics = calculate_metrics(period_actual, period_forecast)
+    
+    print(f"\n{period_name}:")
+    print(f"  Date range: {start.date()} to {end.date()}")
+    print(f"  Observations: {len(period_actual)}")
+    print(f"  RMSE: {period_metrics['RMSE']:.2f}")
+    print(f"  MAE: {period_metrics['MAE']:.2f}")
+    print(f"  MAPE: {period_metrics['MAPE']:.2f}%")
+
+# %% [markdown]
+# **Performance by Time Period:**
+#
+# This analysis helps identify:
+#
+# **Forecast Degradation:**
+# - If performance worsens over time, the model may not capture long-term patterns
+# - Short-term forecasts are typically more accurate than long-term forecasts
+#
+# **Seasonal Patterns:**
+# - Performance may vary by day of week or time of day
+# - Some periods (e.g., weekends) may be harder to predict
+#
+# **Model Stability:**
+# - Consistent performance across periods indicates stable model
+# - Large variations suggest model may be sensitive to specific conditions
+
+# %% [markdown]
+# ## 3.6 Model Comparison with Baselines
+#
+# To assess the ARIMA model's value, let's compare it with simple baseline forecasts.
+
+# %%
+# Create baseline forecasts
+baseline_naive = train_data.iloc[-1]  # Naive: last training value
+baseline_mean = train_data.mean()  # Mean: average of training data
+
+# Calculate baseline metrics
+naive_forecast = pd.Series([baseline_naive] * len(test_data), index=test_data.index)
+mean_forecast = pd.Series([baseline_mean] * len(test_data), index=test_data.index)
+
+naive_metrics = calculate_metrics(test_data, naive_forecast)
+mean_metrics = calculate_metrics(test_data, mean_forecast)
+
+print("=" * 60)
+print("MODEL COMPARISON WITH BASELINES")
+print("=" * 60)
+print(f"{'Model':<20} {'RMSE':<12} {'MAE':<12} {'MAPE':<12}")
+print("-" * 60)
+print(f"{'Naive (Last Value)':<20} {naive_metrics['RMSE']:<12.2f} {naive_metrics['MAE']:<12.2f} {naive_metrics['MAPE']:<12.2f}")
+print(f"{'Mean Forecast':<20} {mean_metrics['RMSE']:<12.2f} {mean_metrics['MAE']:<12.2f} {mean_metrics['MAPE']:<12.2f}")
+print(f"{'ARIMA({p},{d_optimal},{q})':<20} {out_of_sample_metrics['RMSE']:<12.2f} {out_of_sample_metrics['MAE']:<12.2f} {out_of_sample_metrics['MAPE']:<12.2f}")
+
+print("\n" + "=" * 60)
+print("IMPROVEMENT OVER BASELINES")
+print("=" * 60)
+naive_improvement_rmse = (naive_metrics['RMSE'] - out_of_sample_metrics['RMSE']) / naive_metrics['RMSE'] * 100
+naive_improvement_mae = (naive_metrics['MAE'] - out_of_sample_metrics['MAE']) / naive_metrics['MAE'] * 100
+mean_improvement_rmse = (mean_metrics['RMSE'] - out_of_sample_metrics['RMSE']) / mean_metrics['RMSE'] * 100
+mean_improvement_mae = (mean_metrics['MAE'] - out_of_sample_metrics['MAE']) / mean_metrics['MAE'] * 100
+
+print(f"vs Naive (Last Value):")
+print(f"  RMSE improvement: {naive_improvement_rmse:+.1f}%")
+print(f"  MAE improvement: {naive_improvement_mae:+.1f}%")
+print(f"\nvs Mean Forecast:")
+print(f"  RMSE improvement: {mean_improvement_rmse:+.1f}%")
+print(f"  MAE improvement: {mean_improvement_mae:+.1f}%")
+
+# Visual comparison
+fig, ax = plt.subplots(figsize=(16, 6))
+
+ax.plot(test_data.index, test_data, label='Actual Data',
+        color='#1f77b4', linewidth=0.8)
+ax.plot(forecast_values.index, forecast_values, label='ARIMA Forecast',
+        color='red', linewidth=1.5, linestyle='--')
+ax.plot(naive_forecast.index, naive_forecast, label='Naive Forecast',
+        color='green', linewidth=1.5, linestyle=':', alpha=0.7)
+ax.plot(mean_forecast.index, mean_forecast, label='Mean Forecast',
+        color='orange', linewidth=1.5, linestyle=':', alpha=0.7)
+
+ax.set_title('Model Comparison: ARIMA vs Baselines', fontsize=14, fontweight='bold')
+ax.set_xlabel('Date', fontsize=12)
+ax.set_ylabel('Number of Requests', fontsize=12)
+ax.legend(loc='upper left')
+ax.grid(True, alpha=0.3)
+
+plt.tight_layout()
+plt.show()
+
+# %% [markdown]
+# **Figure 10: Model Comparison with Baselines**
+#
+# - **Blue line:** Actual test data
+# - **Red dashed line:** ARIMA forecast
+# - **Green dotted line:** Naive forecast (last training value)
+# - **Orange dotted line:** Mean forecast (average of training data)
+#
+# **Interpretation:**
+#
+# **Baseline Models:**
+# - **Naive forecast:** Uses the last observed value - very simple but often hard to beat
+# - **Mean forecast:** Uses the average of all training data - ignores all patterns
+#
+# **ARIMA Value:**
+# - If ARIMA significantly outperforms baselines, it's capturing meaningful patterns
+# - If ARIMA only slightly outperforms naive forecast, consider model complexity vs benefit
+# - If ARIMA performs worse than naive forecast, the model may be misspecified
+
+# %% [markdown]
+# ## 3.7 Section 3 Summary and Conclusions
+#
+# ### Overall Model Performance:
+#
+# **Forecast Accuracy:**
+# - RMSE: {out_of_sample_metrics['RMSE']:.2f}
+# - MAE: {out_of_sample_metrics['MAE']:.2f}
+# - MAPE: {out_of_sample_metrics['MAPE']:.2f}%
+#
+# **Model Generalization:**
+# - In-sample RMSE: {in_sample_metrics['RMSE']:.2f}
+# - Out-of-sample RMSE: {out_of_sample_metrics['RMSE']:.2f}
+# - Ratio: {out_of_sample_metrics['RMSE']/in_sample_metrics['RMSE']:.2f}
+# - Assessment: [Good/Moderate/Poor] generalization
+#
+# **Comparison with Baselines:**
+# - vs Naive: {naive_improvement_rmse:+.1f}% RMSE improvement
+# - vs Mean: {mean_improvement_rmse:+.1f}% RMSE improvement
+# - ARIMA adds value: [Yes/No]
+#
+# **Residual Analysis:**
+# - Residual mean: {forecast_residuals.mean():.4f} (should be ~0)
+# - Residual autocorrelation: [Present/Absent]
+# - Residual normality: [Approximately normal/Not normal]
+# - Model assumptions: [Satisfied/Violated]
+#
+# ### Suitability for Production:
+#
+# **Is ARIMA suitable for this traffic forecasting task?**
+#
+# **Strengths:**
+# - [List strengths based on analysis]
+# - [e.g., Captures daily patterns, interpretable parameters, fast inference]
+#
+# **Weaknesses:**
+# - [List weaknesses based on analysis]
+# - [e.g., Struggles with sudden spikes, linear assumptions, limited non-linear patterns]
+#
+# **Recommendation:**
+# - [Deploy/Do not deploy] ARIMA model in production
+# - [If deploy: With what monitoring and fallback mechanisms?]
+# - [If not deploy: What improvements are needed?]
+#
+# ### Recommendations for Improvement:
+#
+# **Model Enhancements:**
+# 1. Consider SARIMA if seasonal patterns are present
+# 2. Try Prophet for better handling of holidays and special events
+# 3. Experiment with LSTM for capturing non-linear patterns
+# 4. Implement ensemble methods combining multiple models
+#
+# **Feature Engineering:**
+# 1. Add exogenous variables (time of day, day of week)
+# 2. Include weather data if available
+# 3. Add lag features at multiple time scales
+# 4. Implement rolling window statistics
+#
+# **Evaluation:**
+# 1. Test on multiple time windows (1min, 5min, 15min)
+# 2. Perform cross-validation for robust assessment
+# 3. Compare with other models (Prophet, XGBoost, LSTM)
+# 4. Evaluate on different time periods (weekdays, weekends)
+#
+# ### Final Conclusion:
+#
+# The ARIMA({p}, {d_optimal}, {q}) model [achieved/failed to achieve] acceptable forecasting performance for the NASA server traffic data. The model [is/is not] recommended for production use [with/without] further improvements and monitoring.
+
+# %% [markdown]
 # ---
 #
-# **[END OF SECTION 1 OUTLINE - READY FOR REVIEW]**
+# **[END OF NOTEBOOK]**
 #
-# **Sections to be added after approval:**
-# - Section 2: Training (ARIMA parameter selection, model fitting, diagnostics)
-# - Section 3: Post-train Evaluation (forecasting, metrics, visualization, conclusions)
+# **Next Steps:**
+# - Save the trained model for deployment
+# - Implement the model in the API layer (`api/app.py`)
+# - Add ARIMA forecasts to the dashboard (`app/dashboard.py`)
+# - Compare with other models (Prophet, LSTM, XGBoost)
+# - Implement optimization rules based on forecasts
+# - Prepare final report and presentation materials
