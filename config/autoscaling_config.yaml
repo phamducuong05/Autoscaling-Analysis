@@ -1,0 +1,29 @@
+# Autoscaling System Configuration
+
+server:
+  capacity: 100          # Requests per second per server
+  max_servers: 1000      # Circuit breaker limit
+  min_servers: 1         # Minimum active servers
+
+cost:
+  server_hourly_rate: 0.1  # $0.1 per server per hour
+  sla_penalty_per_req: 5.0 # $5.0 penalty per dropped request (SLA breach)
+
+safety:
+  # Coefficient of Variation thresholds based on EDA
+  factors:
+    high_risk: 1.63      # Panic Mode (02:00 - 07:00)
+    standard: 1.42       # Standard Mode
+    economic: 1.32       # Eco Mode (11:00 - 16:00)
+  
+  # Hour ranges (inclusive start, exclusive end for implementation simplicity usually, but we use strict hour matching)
+  high_risk_hours: [2, 3, 4, 5, 6, 7]
+  economic_hours: [11, 12, 13, 14, 15, 16]
+
+cooldown:
+  scale_out_minutes: 1   # Fast reaction up
+  scale_in_minutes: 15   # Slow reaction down (Anti-flapping)
+
+anomaly:
+  ddos_multiplier: 5.0   # If Load > Forecast * 5 -> DDoS suspected
+  ddos_max_servers: 50   # Cap servers during DDoS to save cost
