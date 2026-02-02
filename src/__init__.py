@@ -6,7 +6,7 @@ from src.data_loader import (
 )
 
 # Feature engineering
-from src.features import add_features
+from src.features import add_features, clean_data
 
 # Utilities
 from src.utils import plot_imputation_check
@@ -18,6 +18,7 @@ __all__ = [
     'resample_traffic',
     # Feature engineering
     'add_features',
+    'clean_data',
     # Utilities
     'plot_imputation_check',
 ]

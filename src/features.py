@@ -100,3 +100,33 @@ def add_features(df_input, frequency='5m'):
     df['requests_target'] = df['requests_target'].astype(int)
 
     return df
+
+
+def clean_data(df_input, quantile_threshold=0.99):
+    """
+    Làm sạch dữ liệu bằng cách:
+    - Phát hiện và đánh dấu spikes (requests_target > threshold)
+    - Clip giá trị spike về threshold
+    - Interpolate các điểm có requests_target == 0
+    """
+    df = df_input.copy()
+    
+    threshold = df['requests_target'].quantile(quantile_threshold)
+    
+    df['is_spike'] = (df['requests_target'] > threshold).astype(int)
+    
+    df.loc[df['is_spike'] == 1, 'requests_target'] = threshold
+    
+    
+    df.loc[df['requests_target'] == 0, 'requests_target'] = np.nan
+    df['requests_target'] = df['requests_target'].interpolate(
+        method='time'
+    )
+    
+    # Fill remaining NaN (nếu có) bằng forward fill và backward fill
+    df['requests_target'] = df['requests_target'].fillna(method='ffill')
+    
+    # Type cast
+    df['requests_target'] = df['requests_target'].astype(int)
+    
+    return df

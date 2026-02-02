@@ -100,6 +100,7 @@ FEATURE_COLUMNS = [
     'is_weekend',
     'hour_sin',
     'hour_cos',
+    'is_spike',
 ]
 
 # ===========================
