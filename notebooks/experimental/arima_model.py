@@ -670,31 +670,39 @@ plt.show()
 # ### Key Findings from Pre-train Analysis:
 #
 # **Data Characteristics:**
-# - [Summary of data statistics and patterns]
-# - [Observations about daily/weekly seasonality]
-# - [Notes on data quality and anomalies]
+# - Data shape: 17,856 observations across 17 features
+# - Date range: July 1, 1995 - August 31, 1995
+# - System downtime: August 1-3, 1995 (due to storm)
+# - Time resolution: 5-minute intervals
+# - Primary feature: Number of requests (target variable)
 #
 # **Stationarity Assessment:**
-# - ADF test result: [p-value and interpretation]
-# - Differencing required: [Yes/No, and if yes, what order]
-# - Recommended d parameter: [value]
+# - ADF test result: p-value = 0.000000 (very highly significant)
+# - Series is: Stationary (p-value < 0.05)
+# - Differencing required: No
+# - Recommended d parameter: 0
 #
 # **Autocorrelation Analysis:**
-# - ACF pattern: [description and implications for q]
-# - PACF pattern: [description and implications for p]
-# - Seasonality detected: [Yes/No]
+# - ACF pattern: Very slow, linear decay over 50+ lags
+# - PACF pattern: Sharp cutoff after Lag 1, with smaller spike at Lag 2
+# - Seasonality detected: No obvious recurring spikes at regular intervals
+# - Recommended p: 1 or 2 (based on PACF cutoff)
+# - Recommended q: 0 (ACF shows gradual decay, not sharp cutoff)
 #
 # **Data Preparation:**
-# - Train set: [date range and size]
-# - Test set: [date range and size]
-# - Data ready for ARIMA training: [Yes/No]
+# - Train set: July 1 - August 22, 1995 (14,977 observations)
+# - Test set: August 23 - August 31, 1995 (2,879 observations)
+# - Train/test split: 83.9% / 16.1%
+# - Data ready for ARIMA training: Yes
 #
 # ### Suitability Assessment:
 #
 # **Is ARIMA suitable for this data?**
-# - [Answer with justification based on analysis]
-# - [If suitable, proceed to training]
-# - [If not suitable, explain why and suggest alternatives]
+# Yes, ARIMA is suitable because:
+# - The series is stationary (no differencing needed)
+# - Clear autocorrelation structure exists (AR component)
+# - No complex seasonality that would require SARIMA
+# - Sufficient data points for reliable parameter estimation
 #
 # ### Next Steps:
 #
@@ -1341,7 +1349,7 @@ else:
 # - Non-significant coefficients suggest the model may be over-parameterized
 
 # %% [markdown]
-# ## 2.3 Model Diagnostics
+# ## 2.4 Model Diagnostics
 #
 # After fitting the model, we need to validate that it meets ARIMA assumptions:
 #
@@ -1515,20 +1523,28 @@ print("  - ACF of residuals shows no significant lags")
 # ### Model Training Results:
 #
 # **Parameter Selection:**
-# - Optimal ARIMA model: ARIMA({p}, {d_optimal}, {q})
+# - Optimal ARIMA model: ARIMA(4, 0, 1)
 # - Selection method: auto_arima with AIC criterion
-# - Model complexity: Balanced fit and simplicity
+# - Model complexity: Moderate (4 AR terms + 1 MA term)
+# - Manual vs Auto alignment: Auto_arima selected ARIMA(4,0,1), which differs from manual ARIMA(1,0,0) and ARIMA(2,0,0)
 #
 # **Model Fit:**
-# - AIC: {auto_model.aic():.2f}
-# - BIC: {auto_model.bic():.2f}
-# - Training samples: {len(train_data)} observations
+# - AIC: 159293.76
+# - BIC: 159347.06
+# - Training samples: 14,977 observations
+# - Log Likelihood: -79639.88
+#
+# **Model Comparison:**
+# - Manual A (ARIMA 1,0,0): AIC=162585.96, BIC=162608.80
+# - Manual B (ARIMA 2,0,0): AIC=160965.16, BIC=160995.61
+# - Auto (ARIMA 4,0,1): AIC=159293.76, BIC=159347.06
+# - Best model: Auto ARIMA(4,0,1) by AIC (lowest)
 #
 # **Model Diagnostics:**
-# - Residual autocorrelation: [Based on Ljung-Box test]
-# - Residual normality: [Based on Jarque-Bera test]
-# - Residual patterns: [Based on visual inspection]
-# - Overall model adequacy: [Adequate/Needs improvement]
+# - Residual autocorrelation: Absent (Ljung-Box p-value = 0.677 > 0.05, GOOD)
+# - Residual normality: Not normal (Jarque-Bera p-value = 0.000 < 0.05, BAD)
+# - Residual patterns: Residuals are uncorrelated but not normally distributed
+# - Overall model adequacy: Adequate for forecasting, though normality assumption is violated
 #
 # ### Next Steps:
 #
