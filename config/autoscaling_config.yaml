@@ -22,7 +22,7 @@ safety:
 
 cooldown:
   scale_out_minutes: 2   # Time for a new instance to be 'Warm' [cite: 43]
-  scale_in_minutes: 10   # Be conservative when shutting down servers
+  scale_in_minutes: 6   # Be conservative when shutting down servers
 
 stability:
   window_minutes: 5      # Requirement: sustain high load for 5m 

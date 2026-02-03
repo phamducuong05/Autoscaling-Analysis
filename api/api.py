@@ -1,7 +1,6 @@
 import logging
 import sys
 import os
-import joblib
 import numpy as np  
 import torch        
 from fastapi import FastAPI
@@ -20,85 +19,30 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../')))
 
 from src.autoscaler import Autoscaler
 from src.utils import load_config
-from src.lstm.models.lstm_model import LSTMModel
 from .schema import (
     ForecastRequest, PredictionRequest, ForecastResponse, 
     ScalingRequest, ScalingResponse
 )
+from .constants import (
+    MODEL_DIR, MODEL_INPUT_SIZE, MODEL_HIDDEN_SIZE, MODEL_NUM_LAYERS,
+    MAX_RESIDUALS, SEQUENCE_LENGTH
+)
+from .model_loader import load_lstm_model
+from .feature_engineering import prepare_features
 
 # --- GLOBAL STATE ---
 scaler = Autoscaler()
-residuals_buffer = [] # Store last 15 residuals
+residuals_buffer = [] # Store last MAX_RESIDUALS residuals (from config)
 last_forecast_val = 0.0 # Store prediction from previous step
-MAX_RESIDUALS = 15
+# MAX_RESIDUALS is now imported from config
 
 logger.info("✅ Autoscaler Engine Initialized (Stateful)")
 
 # --- LOAD AI MODEL ---
-try:
-    MODEL_DIR = "models_export"
-    scaler_features = joblib.load(f"{MODEL_DIR}/scaler_features.pkl")
-    scaler_target = joblib.load(f"{MODEL_DIR}/scaler_target.pkl")
-    
-    # Initialize Model with parameters from metadata.json
-    # input_size=5, hidden_size=32, num_layers=1
-    real_model = LSTMModel(input_size=5, hidden_size=32, num_layers=1)
-    real_model.load_state_dict(torch.load(f"{MODEL_DIR}/model_weights.pth", map_location='cpu'))
-    real_model.eval()
-    logger.info("✅ LSTM Model Loaded Successfully")
-except Exception as e:
-    logger.warning(f"⚠️ Warning: Could not load AI Model. Using heuristic fallback. Error: {e}")
-    real_model = None
-
-def prepare_features(req: PredictionRequest):
-    """
-    Combine separate feature lists into a single input tensor (1, 12, 5).
-    Features: [requests_target, error_rate, hour_sin, hour_cos, is_weekend]
-    """
-    # 1. Combine parallel lists into columns
-    # We expect the dashboard to send lists of same length.
-    # If not, we truncate to the shortest length.
-    min_len = min(
-        len(req.recent_history), 
-        len(req.error_history) if req.error_history else len(req.recent_history),
-        len(req.hour_sin_history) if req.hour_sin_history else len(req.recent_history)
-    )
-    
-    # If histories are empty, return None
-    if min_len == 0:
-        return None
-
-    # Slice to last 12 (Sequence Length)
-    seq_len = 12
-    
-    # Extract raw vectors
-    # Note: Dashboard sends 'recent_history' (load) and buffers.
-    # We iterate backwards or just slice the end.
-    
-    # Helper to safe-get last N
-    def get_last_n(lst, n):
-        if not lst: return [0.0] * n
-        return lst[-n:] if len(lst) >= n else [0.0] * (n - len(lst)) + lst
-
-    f1 = get_last_n(req.recent_history, seq_len) # Load
-    f2 = get_last_n(req.error_history, seq_len)  # Error
-    f3 = get_last_n(req.hour_sin_history, seq_len)
-    f4 = get_last_n(req.hour_cos_history, seq_len)
-    f5 = get_last_n(req.is_weekend_history, seq_len)
-    
-    # Stack columns: shape (12, 5)
-    input_data = np.column_stack((f1, f2, f3, f4, f5))
-    
-    # 2. Scale
-    if 'scaler_features' in globals() and scaler_features:
-        input_scaled = scaler_features.transform(input_data)
-    else:
-        # Fallback if scaler missing (should not happen if model loaded)
-        return None
-        
-    # 3. Tensor conversion
-    tensor = torch.tensor(input_scaled, dtype=torch.float32).unsqueeze(0) # (1, 12, 5)
-    return tensor
+# Extracted to model_loader.py - exact same logic
+real_model, scaler_features, scaler_target = load_lstm_model(
+    MODEL_DIR, MODEL_INPUT_SIZE, MODEL_HIDDEN_SIZE, MODEL_NUM_LAYERS
+)
 
 @app.post("/forecast", response_model=ForecastResponse)
 def get_forecast_live(req: PredictionRequest):
@@ -134,7 +78,7 @@ def get_forecast_live(req: PredictionRequest):
     # Try AI Inference
     if real_model:
         try:
-            input_tensor = prepare_features(req)
+            input_tensor = prepare_features(req, scaler_features, SEQUENCE_LENGTH)
             if input_tensor is not None:
                 logger.info(f"   Input Tensor Shape: {input_tensor.shape}")
                 with torch.no_grad():

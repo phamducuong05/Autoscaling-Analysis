@@ -20,63 +20,20 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../')))
 
 from src.utils import load_config
 
-# --- CONFIGURATION ---
-from src.data_loader import load_and_process_logs, resample_traffic
-from src.features import add_features
+# Import new modules - use absolute imports for Streamlit
+from app.constants import (
+    HISTORY_WINDOW_SIZE, CHART_WINDOW_SIZE, DEFAULT_SPEED_MS,
+    DEFAULT_START_IDX, DEFAULT_DURATION, TEST_DATA_PATH,
+    RESAMPLE_WINDOW, FREQUENCY, SIGMA_MULTIPLIER
+)
+from app.api_client import AutoscalingAPIClient
+from app.data_loader import load_data
+from app.visualization import create_realtime_chart
 
 # --- CONFIGURATION ---
 st.set_page_config(page_title="Autoscaling Live Demo", layout="wide")
 CONFIG = load_config()
 API_URL = f"http://{CONFIG['api']['host']}:{CONFIG['api']['port']}"
-TEST_DATA_PATH = "data/raw/test.txt"
-
-# --- HELPER FUNCTIONS ---
-@st.cache_data
-def load_data():
-    """
-    Load raw test data, resample to 5-minute intervals, and add features.
-    """
-    if not os.path.exists(TEST_DATA_PATH):
-        st.error(f"File not found: {TEST_DATA_PATH}")
-        return pd.DataFrame()
-        
-    with st.spinner('Processing raw logs (Resampling to 5min)...'):
-        # 1. Parse Raw Logs
-        df_raw = load_and_process_logs([TEST_DATA_PATH])
-        
-        # 2. Resample to 5 Minutes
-        df_resampled = resample_traffic(df_raw, window='5min')
-        
-        # 3. Add Features (Cyclic Time, Weekend, etc.)
-        df_features = add_features(df_resampled, frequency='5m')
-        
-        # Reset index to make timestamp a column for iteration
-        df_features = df_features.reset_index()
-        
-        # Create step index for loop
-        df_features['step_index'] = range(len(df_features))
-        
-        return df_features
-
-def call_api(row, forecast_val, sigma, cv):
-    payload = {
-        "timestamp_minute": int(row.name),
-        "current_load": float(row['requests']),
-        "forecast_load": float(forecast_val),
-        "hour_of_day": int(row['hour_of_day']),
-        "sigma": float(sigma),
-        "cv": float(cv)
-    }
-    try:
-        resp = requests.post(f"{API_URL}/recommend-scaling", json=payload)
-        if resp.status_code == 200:
-            return resp.json()
-        else:
-            st.error(f"API Error: {resp.status_code}")
-            return None
-    except Exception as e:
-        st.error(f"Connection Error: Is the API running? {e}")
-        return None
 
 # --- MAIN UI ---
 st.title("⚡ Autoscaling Decision Engine - Live Simulation")
@@ -84,15 +41,18 @@ st.markdown("### Real-time Traffic & Resource Management System")
 
 # Sidebar
 st.sidebar.header("🕹️ Simulation Controls")
-speed = st.sidebar.slider("Simulation Speed (ms)", 500, 5000, 1000)
+speed = st.sidebar.slider("Simulation Speed (ms)", 500, 5000, DEFAULT_SPEED_MS)
 # Slice data for demo (e.g., specific event)
-start_idx = st.sidebar.number_input("Start Minute", 0, 100000, 42000) # Pick a busy time
-duration = st.sidebar.number_input("Duration (Minutes)", 60, 1000, 200)
+start_idx = st.sidebar.number_input("Start Minute", 0, 100000, DEFAULT_START_IDX) # Pick a busy time
+duration = st.sidebar.number_input("Duration (Minutes)", 60, 1000, DEFAULT_DURATION)
+
+# Initialize API Client
+api_client = AutoscalingAPIClient(API_URL)
 
 if st.sidebar.button("🚀 Start Simulation"):
     
-    # Init Data
-    df = load_data()
+    # Init Data - use config parameters
+    df = load_data(TEST_DATA_PATH, RESAMPLE_WINDOW, FREQUENCY)
     # Simulate Forecast (Mocking it here or relying on API? 
     # The API has GET /forecast, but for simulator efficiency we can just pass noise here 
     # OR call the API for forecast too. User plan said: "Dùng tạm data từ tập train".
@@ -125,7 +85,7 @@ if st.sidebar.button("🚀 Start Simulation"):
     # Prepare history buffer (simulate "system memory")
     # We need some initial history to start predicting.
     # Let's take the 10 minutes *before* the start_idx if possible, or pad with 0.
-    history_window_size = 30 # Send last 30 mins to API
+    history_window_size = HISTORY_WINDOW_SIZE # From config: 30
     history_buffer = [] 
     
     # Pre-fill history if possible
@@ -181,25 +141,29 @@ if st.sidebar.button("🚀 Start Simulation"):
             "actual_load_current": float(current_load)
         }
         
-        try:
-            logger.info(f"📤 Sending Forecast Request for Step {row['step_index']} (Min {row['step_index']*5})")
-            resp_forecast = requests.post(f"{API_URL}/forecast", json=forecast_payload)
-            if resp_forecast.status_code == 200:
-                data = resp_forecast.json()
-                forecast_val = data['forecast_load']
-                sigma = data.get('sigma', 0.0) # Gen 2
-                cv = data.get('cv', 0.0)       # Gen 2
-                logger.info(f"   📥 Received Forecast: {forecast_val}, Sigma: {sigma:.2f}, CV: {cv:.3f}")
-            else:
-                st.warning(f"Forecast API Error: {resp_forecast.status_code}")
-                forecast_val = current_load 
-                sigma, cv = 0.0, 0.0
-        except Exception as e:
-            st.error(f"API Connection Error: {e}")
-            break
+        logger.info(f"📤 Sending Forecast Request for Step {row['step_index']} (Min {row['step_index']*5})")
+        # Use api_client instead of direct requests
+        data = api_client.get_forecast(forecast_payload)
+        if data:
+            forecast_val = data['forecast_load']
+            sigma = data.get('sigma', 0.0) # Gen 2
+            cv = data.get('cv', 0.0)       # Gen 2
+            logger.info(f"   📥 Received Forecast: {forecast_val}, Sigma: {sigma:.2f}, CV: {cv:.3f}")
+        else:
+            # Fallback
+            forecast_val = current_load 
+            sigma, cv = 0.0, 0.0
         
-        # 2. Call Decision API (Autoscaler)
-        decision = call_api(row, forecast_val, sigma, cv)
+        # 2. Call Decision API (Autoscaler) - use api_client
+        scaling_payload = {
+            "timestamp_minute": int(row.name),
+            "current_load": float(row['requests']),
+            "forecast_load": float(forecast_val),
+            "hour_of_day": int(row['hour_of_day']),
+            "sigma": float(sigma),
+            "cv": float(cv)
+        }
+        decision = api_client.get_scaling_decision(scaling_payload)
         if not decision:
             break
         
@@ -240,74 +204,18 @@ if st.sidebar.button("🚀 Start Simulation"):
         capacity_history.append(decision['capacity'])
         forecast_history.append(forecast_val)
         
-        # Confidence Interval (Upper/Lower) - 2 Sigma (~95%)
-        upper_bound = forecast_val + (2 * sigma)
-        lower_bound = max(0, forecast_val - (2 * sigma))
+        # Confidence Interval (Upper/Lower) - SIGMA_MULTIPLIER from config (2 Sigma ~95%)
+        upper_bound = forecast_val + (SIGMA_MULTIPLIER * sigma)
+        lower_bound = max(0, forecast_val - (SIGMA_MULTIPLIER * sigma))
         upper_history.append(upper_bound)
         lower_history.append(lower_bound)
 
-        # Draw Real-time Chart
+        # Draw Real-time Chart - use visualization module
         with chart_placeholder.container():
-            fig = go.Figure()
-            
-            # SLIDING WINDOW LOGIC (Optimize Performance)
-            # Only show last 50 points
-            window = 50
-            if len(time_history) > window:
-                plot_time = time_history[-window:]
-                plot_load = load_history[-window:]
-                plot_capacity = capacity_history[-window:]
-                plot_forecast = forecast_history[-window:]
-                plot_upper = upper_history[-window:]
-                plot_lower = lower_history[-window:]
-            else:
-                plot_time = time_history
-                plot_load = load_history
-                plot_capacity = capacity_history
-                plot_forecast = forecast_history
-                plot_upper = upper_history
-                plot_lower = lower_history
-
-            # 1. Confidence Band (Shaded)
-            # We create a closed shape by concatenating upper and reversed lower bound
-            fig.add_trace(go.Scatter(
-                x=plot_time + plot_time[::-1],
-                y=plot_upper + plot_lower[::-1],
-                fill='toself',
-                fillcolor='rgba(255, 127, 14, 0.2)',
-                line=dict(color='rgba(255,255,255,0)'),
-                hoverinfo="skip",
-                name='Confidence Interval (2σ)'
-            ))
-            
-            # 2. System Capacity
-            fig.add_trace(go.Scatter(
-                x=plot_time, y=plot_capacity,
-                mode='lines', name='System Capacity',
-                line=dict(color='#2ca02c', width=2, dash='dash')
-            ))
-            
-            # 3. AI Forecast
-            fig.add_trace(go.Scatter(
-                x=plot_time, y=plot_forecast,
-                mode='lines', name='AI Forecast',
-                line=dict(color='#ff7f0e', width=2)
-            ))
-            
-            # 4. Actual Load
-            fig.add_trace(go.Scatter(
-                x=plot_time, y=plot_load,
-                mode='lines', name='Actual Load',
-                line=dict(color='#1f77b4', width=2)
-            ))
-            
-            fig.update_layout(
-                title="Real-time Autoscaling Monitor (Gen 2)",
-                xaxis_title="Time (Minutes)",
-                yaxis_title="Requests / Capacity",
-                height=450,
-                margin=dict(l=20, r=20, t=40, b=20),
-                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+            fig = create_realtime_chart(
+                time_history, load_history, capacity_history,
+                forecast_history, upper_history, lower_history,
+                window=CHART_WINDOW_SIZE
             )
             
             # Streamlit 1.40+ compatibility
