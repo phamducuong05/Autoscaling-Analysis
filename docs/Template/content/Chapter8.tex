@@ -1,0 +1,104 @@
+\chapter{Kết luận}
+
+\section{Tổng kết kết quả}
+
+Dự án Autoscaling Analysis đã hoàn thành thành công các mục tiêu đề ra, xây dựng một hệ thống khép kín từ xử lý dữ liệu, huấn luyện mô hình dự báo, đến triển khai thuật toán autoscaling tối ưu. Trong khuôn khổ cuộc thi DATAFLOW 2026, chúng tôi đã triển khai ba mô hình dự báo thuộc các nhóm thuật toán khác nhau: \textbf{ARIMA} (phương pháp thống kê truyền thống), \textbf{LSTM} (Deep Learning), và \textbf{XGBoost} (Machine Learning hiện đại). Các mô hình này được huấn luyện và đánh giá trên ba khung thời gian khác nhau (1m, 5m, 15m) với bộ dữ liệu NASA HTTP Logs từ ngày 1/7/1995 đến 31/8/1995.
+
+Kết quả đánh giá cho thấy sự vượt trội rõ rệt của các mô hình hiện đại so với phương pháp thống kê truyền thống. Bảng \ref{tab:final_summary} tóm tắt kết quả hiệu quả dự báo của ba mô hình trên cửa sổ 5 phút.
+
+\begin{table}[H]
+    \centering
+    \caption{Tổng kết kết quả dự báo của ba mô hình cho cửa sổ 5 phút}
+    \label{tab:final_summary}
+    \begin{tabular}{lcccc}
+        \toprule
+        Mô hình & RMSE & MAE & MAPE (\%) & Xếp hạng \\
+        \midrule
+        ARIMA(2,0,1) & 121.86 & 99.20 & 86.26 & 3 \\
+        LSTM & 44.59 & 33.86 & 26.91 & 2 \\
+        XGBoost & 41.94 & 31.92 & 26.48 & 1 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+Mô hình \textbf{XGBoost} đạt hiệu quả tốt nhất trên cả ba chỉ số đánh giá: \texttt{RMSE = 41.94}, \texttt{MAE = 31.92}, và \texttt{MAPE = 26.48\%}. So với ARIMA, XGBoost cải thiện đáng kể về độ chính xác dự báo với mức cải thiện 65.6\% về RMSE, 67.8\% về MAE, và 69.3\% về MAPE. Điều này cho thấy khả năng vượt trội của XGBoost trong việc nắm bắt các mẫu hình phi tuyến tính phức tạp trong dữ liệu traffic.
+
+Mô hình \textbf{LSTM} xếp thứ hai với hiệu quả tương đương với XGBoost: \texttt{RMSE = 44.59}, \texttt{MAE = 33.86}, và \texttt{MAPE = 26.91\%}. LSTM cải thiện 63.4\% về RMSE so với ARIMA, cho thấy khả năng nắm bắt các mẫu hình tuần tự dài hạn của mạng nơ-ron hồi quy. Tuy nhiên, LSTM có tỷ lệ overfitting cao hơn XGBoost (khoảng 1.2x so với 1.11x), cho thấy khả năng tổng quát hóa của XGBoost tốt hơn.
+
+Mô hình \textbf{ARIMA} xếp hạng cuối với hiệu quả dự báo kém đáng kể: \texttt{RMSE = 121.86}, \texttt{MAE = 99.20}, và \texttt{MAPE = 86.26\%}. ARIMA chỉ cải thiện nhẹ 0.5\% so với baseline (mean baseline), cho thấy giá trị gia tăng của mô hình là rất hạn chế. Nguyên nhân chính là sự thiếu hụt thành phần mùa vụ (seasonal component) trong mô hình ARIMA tiêu chuẩn, không thể nắm bắt được các chu kỳ hàng ngày và hàng tuần rõ rệt trong dữ liệu traffic.
+
+Ngoài ra, dự án cũng đã triển khai và so sánh ba chiến lược autoscaling khác nhau: \textbf{CPU-based scaling}, \textbf{Request-based scaling}, và \textbf{Predictive scaling}. Kết quả phân tích chi phí cho thấy chiến lược \textbf{Predictive scaling} đạt hiệu quả tốt nhất với tổng chi phí \$375.12, tiết kiệm 47.9\% so với chiến lược static allocation (cấp phát tài nguyên cố định với 10 máy chủ). Chiến lược này chỉ có 0.9\% thời gian hệ thống bị overload, cho thấy khả năng cân bằng tốt giữa chi phí vận hành và chất lượng dịch vụ.
+
+Bảng \ref{tab:final_scaling} tóm tắt kết quả so sánh chi phí giữa các chiến lược autoscaling.
+
+\begin{table}[H]
+    \centering
+    \caption{Tổng kết so sánh chi phí giữa các chiến lược autoscaling}
+    \label{tab:final_scaling}
+    \begin{tabular}{lcccc}
+        \toprule
+        Chiến lược & Số server trung bình & Tổng chi phí (\$) & Tiết kiệm (\%) & Tỷ lệ overload (\%) \\
+        \midrule
+        Static (10 server) & 10.00 & 720.00 & 0.0 & 0.0 \\
+        CPU-based & 6.42 & 462.24 & 35.8 & 2.1 \\
+        Request-based & 5.87 & 422.64 & 41.3 & 1.8 \\
+        Predictive & 5.21 & 375.12 & 47.9 & 0.9 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+Kết quả này cho thấy giá trị thực tế của việc sử dụng mô hình học máy để dự báo traffic và chủ động điều chỉnh tài nguyên. Predictive scaling sử dụng kết quả dự báo từ mô hình XGBoost để đón đầu xu hướng traffic, giúp hệ thống có đủ tài nguyên trước khi traffic thực tế tăng, từ đó giảm thiểu độ trễ phản ứng và tối ưu hóa chi phí vận hành.
+
+\section{Đóng góp của dự án}
+
+Dự án Autoscaling Analysis đã đóng góp nhiều giá trị quan trọng trên cả hai khía cạnh kỹ thuật và thực tiễn.
+
+Về \textbf{đóng góp kỹ thuật}, dự án đã xây dựng một pipeline khép kín từ xử lý dữ liệu, huấn luyện mô hình, đến triển khai hệ thống thực nghiệm. Pipeline này bao gồm các module chính: \texttt{data\_loader.py} (đọc và parse logs), \texttt{features.py} (tạo đặc trưng), \texttt{evaluation.py} (tính toán các chỉ số đánh giá), và \texttt{optimization.py} (logic autoscaling). Các module này được thiết kế theo kiến trúc mô-đun, dễ mở rộng và dễ bảo trì, có thể tái sử dụng cho các bài toán chuỗi thời gian tương tự.
+
+Dự án cũng đã triển khai và so sánh ba mô hình dự báo thuộc các nhóm thuật toán khác nhau, cung cấp một cái nhìn toàn diện về hiệu quả của từng phương pháp. Kết quả đánh giá chi tiết với các chỉ số RMSE, MAE, MAPE và tỷ lệ overfitting giúp hiểu rõ ưu điểm và hạn chế của từng mô hình, từ đó đưa ra khuyến nghị phù hợp cho từng kịch bản sử dụng.
+
+Về \textbf{đóng góp thực tiễn}, dự án đã xây dựng một hệ thống autoscaling hoàn chỉnh với API và Dashboard, cho phép người dùng tương tác trực tiếp với hệ thống. API được xây dựng bằng FastAPI và cung cấp hai endpoint chính: \texttt{/forecast} để lấy dự báo lưu lượng truy cập và \texttt{/recommend-scaling} để lấy đề xuất số lượng máy chủ tối ưu. Dashboard được xây dựng bằng Streamlit và cung cấp giao diện người dùng trực quan để hiển thị kết quả dự báo và các đề xuất autoscaling.
+
+Kết quả phân tích chi phí cho thấy chiến lược Predictive scaling có thể tiết kiệm đến 47.9\% chi phí vận hành so với chiến lược static allocation, trong khi vẫn đảm bảo chất lượng dịch vụ với chỉ 0.9\% thời gian hệ thống bị overload. Điều này có ý nghĩa thực tế lớn trong môi trường điện toán đám mây, nơi tối ưu hóa chi phí là một ưu tiên hàng đầu.
+
+Dự án cũng đã \textbf{đáp ứng đầy đủ các yêu cầu của cuộc thi DATAFLOW 2026}. Về mặt kỹ thuật, dự án đã triển khai tối thiểu hai mô hình thuộc các nhóm thuật toán khác nhau (ARIMA, LSTM, XGBoost), huấn luyện và đánh giá trên ba khung thời gian (1m, 5m, 15m), và sử dụng các chỉ số đánh giá RMSE, MSE, MAE, MAPE. Về mặt tối ưu hóa, dự án đã xây dựng thuật toán autoscaling với các chiến lược scaling khác nhau và cơ chế cooldown để tránh dao động liên tục. Về mặt demo, dự án đã xây dựng Dashboard và API với các endpoint \texttt{/forecast} và \texttt{/recommend-scaling} như yêu cầu.
+
+Dự án cũng đã cung cấp \textbf{giá trị giáo dục} thông qua việc phân tích chi tiết từng bước trong pipeline, từ xử lý dữ liệu, feature engineering, đến huấn luyện và đánh giá mô hình. Các notebook trong thư mục \texttt{notebooks/} cung cấp hướng dẫn chi tiết về cách triển khai từng mô hình, giúp người đọc hiểu rõ các khái niệm và kỹ thuật được sử dụng.
+
+\section{Hạn chế và hướng phát triển}
+
+Mặc dù đã đạt được nhiều kết quả tích cực, dự án vẫn có một số hạn chế cần được giải quyết trong các phiên bản tiếp theo.
+
+\subsection{Hạn chế hiện tại}
+
+Hạn chế đầu tiên là dự án \textbf{chỉ được test trên dữ liệu lịch sử} từ NASA HTTP Logs (giai đoạn 1/7 - 31/8/1995). Dữ liệu này đại diện cho một bối cảnh cụ thể vào giữa thập niên 1990 và có thể không phản ánh đầy đủ các đặc điểm của traffic hiện đại. Traffic hiện đại thường có các mẫu hình phức tạp hơn, bao gồm các sự kiện viral, các chiến dịch marketing, và các đợt tấn công DDoS. Việc chỉ test trên dữ liệu lịch sử có thể làm giảm khả năng tổng quát hóa của mô hình trong môi trường production thực tế.
+
+Hạn chế thứ hai là dự án \textbf{chỉ tập trung vào khung thời gian 5 phút} cho phần đánh giá chi tiết và triển khai autoscaling. Mặc dù đã huấn luyện mô hình trên cả ba khung thời gian (1m, 5m, 15m), nhưng việc chỉ triển khai trên khung 5 phút có thể bỏ qua các cơ hội tối ưu hóa cho các kịch bản khác nhau. Khung 1 phút phù hợp cho các hệ thống cần phản ứng nhanh với các biến động tức thời, trong khi khung 15 phút phù hợp cho các chiến lược dài hạn.
+
+Hạn chế thứ ba là dự án \textbf{chưa được test trong môi trường production thực tế}. Mặc dù đã xây dựng API và Dashboard, nhưng hệ thống chưa được triển khai và test với traffic real-time. Việc test trong môi trường production sẽ giúp phát hiện các vấn đề không thể phát hiện trong môi trường development, bao gồm các vấn đề về độ trễ, khả năng mở rộng, và độ tin cậy.
+
+Hạn chế thứ tư là mô hình \textbf{ARIMA không có thành phần mùa vụ} (seasonal component). Dữ liệu traffic có chu kỳ hàng ngày và hàng tuần rõ rệt, nhưng mô hình ARIMA tiêu chuẩn \texttt{ARIMA(2,0,1)} không thể nắm bắt được các chu kỳ này. Việc sử dụng mô hình \textbf{SARIMA} (Seasonal ARIMA) có thể cải thiện đáng kể hiệu quả dự báo của phương pháp thống kê.
+
+Hạn chế thứ năm là dự án \textbf{chưa triển khai các cơ chế phát hiện anomaly}. Các sự kiện bất thường như các đợt tấn công DDoS hoặc các sự kiện viral có thể gây ra traffic đột ngột vượt quá khả năng dự báo của mô hình. Việc triển khai các cơ chế phát hiện anomaly sẽ giúp hệ thống phản ứng nhanh hơn với các sự kiện này.
+
+\subsection{Hướng phát triển trong tương lai}
+
+Để giải quyết các hạn chế trên và nâng cao hiệu quả của hệ thống, chúng tôi đề xuất các hướng phát triển sau.
+
+Đầu tiên, \textbf{triển khai mô hình SARIMA} để nắm bắt các mẫu hình mùa vụ trong dữ liệu traffic. SARIMA là phiên bản mở rộng của ARIMA với thêm các tham số mùa vụ (P, D, Q, s), cho phép mô hình nắm bắt các chu kỳ lặp lại theo thời gian như chu kỳ hàng ngày và hàng tuần. Việc sử dụng SARIMA có thể cải thiện đáng kể hiệu quả dự báo của phương pháp thống kê, giúp nó cạnh tranh được với các mô hình hiện đại như XGBoost và LSTM.
+
+Thứ hai, \textbf{triển khai các phương pháp ensemble} kết hợp nhiều mô hình để tận dụng ưu điểm của từng phương pháp. Các phương pháp ensemble như Stacking, Blending, hoặc Weighted Average có thể kết hợp dự báo từ ARIMA, LSTM, và XGBoost để tạo ra dự báo chính xác hơn. Ví dụ, có thể sử dụng ARIMA để nắm bắt các mẫu hình tuyến tính, LSTM để nắm bắt các mẫu hình tuần tự dài hạn, và XGBoost để nắm bắt các mẫu hình phi tuyến tính phức tạp.
+
+Thứ ba, \textbf{triển khai tích hợp với streaming data} để cho phép dự báo real-time. Hiện tại, hệ thống dự báo dựa trên dữ liệu batch được lưu trong file CSV. Việc tích hợp với các công nghệ streaming như Apache Kafka hoặc Apache Flink sẽ cho phép hệ thống nhận và xử lý dữ liệu real-time, từ đó đưa ra dự báo và đề xuất autoscaling nhanh hơn.
+
+Thứ tư, \textbf{triển khai tích hợp với các cloud provider API} như AWS Auto Scaling, Google Cloud Autoscaler, hoặc Azure Scale Sets. Hiện tại, hệ thống chỉ đưa ra đề xuất số lượng máy chủ tối ưu, nhưng chưa thực hiện scaling thực tế. Việc tích hợp với các cloud provider API sẽ cho phép hệ thống tự động điều chỉnh số lượng máy chủ dựa trên dự báo, tạo thành một hệ thống autoscaling hoàn toàn tự động.
+
+Thứ năm, \textbf{triển khai các cơ chế phát hiện anomaly} để phát hiện và phản ứng với các sự kiện bất thường. Các phương pháp như Isolation Forest, One-Class SVM, hoặc Autoencoder có thể được sử dụng để phát hiện các điểm outlier trong traffic. Khi phát hiện anomaly, hệ thống có thể kích hoạt các cơ chế bảo vệ như rate limiting, block IP, hoặc scale-out khẩn cấp.
+
+Thứ sáu, \textbf{mở rộng sang các khung thời gian khác} và đánh giá hiệu quả của mô hình trên cả 1m, 5m, và 15m. Việc triển khai autoscaling trên nhiều khung thời gian sẽ cho phép hệ thống phản ứng linh hoạt với các biến động traffic ở các mức độ khác nhau. Ví dụ, có thể sử dụng khung 1m để phản ứng nhanh với các biến động tức thời, và khung 15m để tối ưu hóa chi phí dài hạn.
+
+Thứ bảy, \textbf{triển khai cơ chế retraining định kỳ} để cập nhật mô hình với dữ liệu mới. Hiện tại, mô hình được huấn luyện một lần trên dữ liệu lịch sử và không được cập nhật. Trong môi trường production, traffic có thể thay đổi theo thời gian (concept drift), làm giảm hiệu quả của mô hình. Việc retraining định kỳ (ví dụ: hàng tuần hoặc hàng tháng) sẽ giúp mô hình thích ứng với các thay đổi trong mẫu hình traffic.
+
+Cuối cùng, \textbf{triển khai các cơ chế monitoring và alerting} để theo dõi hiệu quả của hệ thống và phát hiện các vấn đề sớm. Các chỉ số cần theo dõi bao gồm độ chính xác dự báo, tỷ lệ overload, chi phí vận hành, và tần suất scaling. Khi các chỉ số này vượt quá ngưỡng, hệ thống có thể gửi alert cho administrator hoặc tự động kích hoạt các cơ chế khắc phục.
+
+Với các hướng phát triển này, hệ thống autoscaling sẽ trở nên mạnh mẽ hơn, có khả năng thích ứng với các biến động traffic phức tạp và cung cấp giá trị thực tế lớn hơn trong môi trường điện toán đám mây.
