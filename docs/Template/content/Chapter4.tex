@@ -1,0 +1,201 @@
+\chapter{Mô hình LSTM}
+
+\section{Tổng quan mô hình LSTM}
+
+Mô hình LSTM (Long Short-Term Memory) là một biến thể nâng cao của mạng nơ-ron hồi quy truyền thống (RNN), được thiết kế đặc biệt để giải quyết vấn đề \textit{vanishing gradient} trong quá trình huấn luyện các chuỗi thời gian dài. LSTM được giới thiệu lần đầu bởi Hochreiter và Schmidhuber năm 1997 và đã trở thành một trong những kiến trúc mạng nơ-ron thành công nhất cho các bài toán chuỗi thời gian, xử lý ngôn ngữ tự nhiên và nhận dạng giọng nói.
+
+LSTM hoạt động dựa trên cơ chế \textit{cell state} (trạng thái ô) và \textit{hidden state} (trạng thái ẩn), cho phép mô hình lưu trữ và truy xuất thông tin trong khoảng thời gian dài mà không bị mất mát thông tin quan trọng. Mỗi ô LSTM chứa ba cổng chính điều khiển dòng chảy thông tin: \textbf{Forget Gate} quyết định thông tin nào từ trạng thái ô cũ sẽ bị loại bỏ; \textbf{Input Gate} quyết định thông tin mới nào sẽ được lưu trữ trong trạng thái ô; và \textbf{Output Gate} quyết định thông tin nào từ trạng thái ô sẽ được xuất ra như trạng thái ẩn mới.
+
+Công thức toán học của ba cổng trong LSTM được biểu diễn như sau:
+
+\begin{equation}
+f_t = \sigma(W_f \cdot [h_{t-1}, x_t] + b_f)
+\end{equation}
+\begin{equation}
+i_t = \sigma(W_i \cdot [h_{t-1}, x_t] + b_i)
+\end{equation}
+\begin{equation}
+\tilde{C}_t = \tanh(W_C \cdot [h_{t-1}, x_t] + b_C)
+\end{equation}
+\begin{equation}
+C_t = f_t * C_{t-1} + i_t * \tilde{C}_t
+\end{equation}
+\begin{equation}
+o_t = \sigma(W_o \cdot [h_{t-1}, x_t] + b_o)
+\end{equation}
+\begin{equation}
+h_t = o_t * \tanh(C_t)
+\end{equation}
+
+Trong đó: \texttt{f\_t} là forget gate tại thời điểm \texttt{t}; \texttt{i\_t} là input gate; \texttt{o\_t} là output gate; \texttt{C\_t} là cell state; \texttt{h\_t} là hidden state; \texttt{x\_t} là input tại thời điểm \texttt{t}; \texttt{$\sigma$} là hàm sigmoid; \texttt{tanh} là hàm hyperbolic tangent; và \texttt{W, b} là các trọng số và bias tương ứng.
+
+LSTM đặc biệt phù hợp cho bài toán dự báo lưu lượng truy cập web vì: (1) khả năng nắm bắt các mẫu hình dài hạn (long-term dependencies) trong chuỗi thời gian, như chu kỳ hàng ngày và hàng tuần; (2) khả năng xử lý các chuỗi thời gian không tuyến tính và phức tạp mà các mô hình thống kê truyền thống như ARIMA không thể nắm bắt; (3) khả năng học được các đặc trưng từ dữ liệu đa biến (multivariate features) như error rate, hour\_sin, hour\_cos, is\_weekend; và (4) khả năng xử lý các chuỗi thời gian dài mà không gặp vấn đề vanishing gradient như RNN truyền thống.
+
+\section{Phương pháp huấn luyện}
+
+\subsection{Chuẩn bị dữ liệu}
+
+Trước khi huấn luyện mô hình LSTM, chúng tôi thực hiện các bước chuẩn bị dữ liệu quan trọng để đảm bảo mô hình hoạt động hiệu quả. Đầu tiên, chúng tôi lựa chọn các đặc trưng quan trọng cho mô hình bằng cách sử dụng \textit{Random Forest Regressor} để đánh giá mức độ quan trọng của từng đặc trưng. Kết quả cho thấy các đặc trưng quan trọng nhất là: \textbf{hour\_cos} (0.450), \textbf{is\_weekend} (0.322), \textbf{hour\_sin} (0.181), và \textbf{error\_rate} (0.047). Dựa trên kết quả này, chúng tôi chọn 5 đặc trưng đầu vào cho mô hình LSTM: \texttt{requests\_target}, \texttt{error\_rate}, \texttt{hour\_sin}, \texttt{hour\_cos}, và \texttt{is\_weekend}.
+
+Tiếp theo, chúng tôi thực hiện \textbf{Data Split} theo trình tự thời gian để đảm bảo tính công bằng khi đánh giá mô hình. Dữ liệu được chia thành ba tập: \textbf{Training set} từ 02/07/1995 đến 16/08/1995 với 13,248 quan sát (khoảng 60\% dữ liệu); \textbf{Validation set} từ 17/08/1995 đến 22/08/1995 với 1,728 quan sát (khoảng 20\% dữ liệu); và \textbf{Test set} từ 23/08/1995 đến 31/08/1995 với 2,592 quan sát (khoảng 20\% dữ liệu). Việc chia dữ liệu theo trình tự thời gian này đảm bảo mô hình được huấn luyện trên quá khứ và dự báo cho tương lai, giả lập đúng cách mà các hệ thống dự báo hoạt động trong thực tế.
+
+Sau khi chia dữ liệu, chúng tôi thực hiện \textbf{Normalization} bằng cách sử dụng \textit{MinMaxScaler} để chuyển đổi các đặc trưng về khoảng [0, 1]. Điều này giúp mô hình hội tụ nhanh hơn và ổn định hơn trong quá trình huấn luyện. Quan trọng là chúng tôi chỉ fit scaler trên training data để tránh data leakage, sau đó áp dụng cùng scaler cho validation và test set.
+
+\subsection{Sequence Creation}
+
+LSTM yêu cầu dữ liệu đầu vào dưới dạng chuỗi (sequence) để học được các mẫu hình phụ thuộc vào quá khứ. Chúng tôi tạo các chuỗi dữ liệu với độ dài \texttt{sequence\_length = 12}, tương ứng với 60 phút dữ liệu lịch sử (12 bước thời gian cho cửa sổ 5 phút). Cụ thể, để dự báo số lượng request tại thời điểm \texttt{t}, mô hình sử dụng dữ liệu từ 12 bước thời gian trước đó (\texttt{t-12} đến \texttt{t-1}).
+
+Quá trình tạo chuỗi được thực hiện như sau. Đầu tiên, chúng tôi tạo \textit{sliding window} trên dữ liệu đã được chuẩn hóa. Với mỗi quan sát tại thời điểm \texttt{t}, chúng tôi lấy 12 quan sát trước đó làm input và quan sát tại thời điểm \texttt{t} làm target. Sau đó, chúng tôi chuyển đổi dữ liệu thành \textit{PyTorch Dataset} với shape \texttt{(batch\_size, sequence\_length, num\_features)}. Cuối cùng, chúng tôi tạo \textit{DataLoader} với batch size = 32 để huấn luyện mô hình hiệu quả.
+
+\subsection{Kiến trúc mạng}
+
+Mô hình LSTM được thiết kế với kiến trúc như sau: \textbf{Input Layer} nhận 5 đặc trưng (requests\_target, error\_rate, hour\_sin, hour\_cos, is\_weekend); \textbf{LSTM Layer} với 32 hidden units và 1 layer; và \textbf{Output Layer} (Fully Connected) chuyển đổi output của LSTM thành dự báo số lượng request.
+
+Sau quá trình hyperparameter tuning với 7 cấu hình khác nhau (bao gồm các biến thể của small\_model, medium\_model, large\_model, và deep\_model với các training configs khác nhau như standard, aggressive, conservative và sequence lengths khác nhau như 12, 24), chúng tôi chọn cấu hình tối ưu nhất là \texttt{small\_model} với: \texttt{input\_size = 5}, \texttt{hidden\_size = 32}, \texttt{num\_layers = 1}, và \texttt{dropout = 0.1}. Mô hình này có tổng cộng 5,025 tham số.
+
+Bảng \ref{tab:lstm_hyperparams} tóm tắt các tham số tối ưu cho mô hình LSTM.
+
+\begin{table}[H]
+    \centering
+    \caption{Tham số tối ưu cho mô hình LSTM}
+    \label{tab:lstm_hyperparams}
+    \begin{tabular}{lc}
+        \toprule
+        Tham số & Giá trị \\
+        \midrule
+        Input size & 5 \\
+        Hidden size & 32 \\
+        Num layers & 1 \\
+        Dropout & 0.1 \\
+        Output size & 1 \\
+        Total parameters & 5,025 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\subsection{Quá trình huấn luyện}
+
+Quá trình huấn luyện mô hình LSTM được thực hiện với các siêu tham số sau: \textbf{Loss Function} là Mean Squared Error (MSE); \textbf{Optimizer} là Adam với learning rate = 0.001; \textbf{Batch size} = 32; \textbf{Epochs tối đa} = 50; và \textbf{Early Stopping} với patience = 10 epochs.
+
+Trong quá trình huấn luyện, chúng tôi sử dụng \textit{Early Stopping} trên validation set để tránh overfitting. Nếu validation loss không cải thiện trong 10 epochs liên tiếp, quá trình huấn luyện sẽ dừng và mô hình với validation loss tốt nhất sẽ được lưu lại. Cơ chế này giúp tiết kiệm thời gian huấn luyện và đảm bảo mô hình có khả năng tổng quát hóa tốt.
+
+Mô hình đạt được \textbf{best epoch = 8} với \textbf{best validation loss = 0.005225}. Sau epoch 8, validation loss bắt đầu tăng nhẹ, cho thấy mô hình bắt đầu overfitting. Early stopping đã kích hoạt tại epoch 18, dừng quá trình huấn luyện và tải lại trọng số từ epoch 8.
+
+Hình \ref{fig:learning_curve} cho thấy đường cong học của mô hình LSTM với train loss và validation loss theo từng epoch. Đường nét đứt màu đỏ đánh dấu epoch tốt nhất (epoch 8) khi validation loss đạt giá trị thấp nhất.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{images/chapter4_learning_curve.png}
+    \caption{Đường cong học (Learning Curve) của mô hình LSTM với Early Stopping}
+    \label{fig:learning_curve}
+\end{figure}
+
+\section{Kết quả cho cửa sổ 5 phút}
+
+Sau khi huấn luyện xong mô hình LSTM tối ưu, chúng tôi đánh giá hiệu quả dự báo trên tập kiểm tra (test set) từ 23/8/1995 đến 31/8/1995. Cửa sổ 5 phút được chọn để phân tích sâu vì nó đạt được sự cân bằng tốt nhất giữa độ chi tiết và độ ổn định trong ba cửa sổ thời gian được đánh giá.
+
+\subsection{Cấu trúc mô hình}
+
+Mô hình LSTM tối ưu cho cửa sổ 5 phút có kiến trúc như sau: \textbf{LSTM Layer} với 32 hidden units và 1 layer nhận input shape \texttt{(batch\_size, 12, 5)}; \textbf{Output Layer} chuyển đổi output của LSTM thành dự báo với shape \texttt{(batch\_size, 1)}; và \textbf{Total Parameters} là 5,025 tham số.
+
+Kiến trúc đơn giản này cho thấy dữ liệu 5 phút đã được làm mượt mà hơn nhờ quá trình aggregation, giúp mô hình LSTM không cần quá nhiều tham số để nắm bắt các mẫu hình trong dữ liệu.
+
+\subsection{Hiệu quả dự báo}
+
+Khi dự báo trên tập kiểm tra (2,592 quan sát), mô hình LSTM đạt được các chỉ số hiệu quả sau: \texttt{RMSE = 44.59}, \texttt{MSE = 1988.35}, \texttt{MAE = 33.86}, và \texttt{MAPE = 26.91\%}. So với mô hình ARIMA (RMSE = 121.86, MAE = 99.20, MAPE = 86.26\%), LSTM cải thiện đáng kể về độ chính xác dự báo.
+
+Bảng \ref{tab:lstm_performance_5m} tóm tắt hiệu quả dự báo của mô hình LSTM cho cửa sổ 5 phút.
+
+Hình \ref{fig:predictions_zoom} cho thấy so sánh giữa dự báo của LSTM và giá trị thực tế trên 300 điểm dữ liệu đầu tiên của tập kiểm tra. Đường nét đứt màu cam là dự báo của LSTM, trong khi đường nét liền màu xanh là giá trị thực tế.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{images/chapter4_predictions_zoom.png}
+    \caption{So sánh dự báo LSTM và giá trị thực tế (Zoom in 300 điểm dữ liệu đầu tập kiểm tra)}
+    \label{fig:predictions_zoom}
+\end{figure}
+
+Hình \ref{fig:predictions_full} cho thấy so sánh giữa dự báo của LSTM và giá trị thực tế trên toàn bộ tập kiểm tra (2,592 điểm dữ liệu).
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{images/chapter4_predictions_full.png}
+    \caption{So sánh dự báo LSTM và giá trị thực tế trên toàn bộ tập kiểm tra}
+    \label{fig:predictions_full}
+\end{figure}
+
+\begin{table}[H]
+    \centering
+    \caption{Hiệu quả dự báo LSTM cho cửa sổ 5 phút}
+    \label{tab:lstm_performance_5m}
+    \begin{tabular}{lcccc}
+        \toprule
+        Cửa sổ & MSE & RMSE & MAE & MAPE (\%) \\
+        \midrule
+        5m & 1988.35 & 44.59 & 33.86 & 26.91 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\subsection{So sánh với ARIMA}
+
+Để đánh giá giá trị gia tăng của LSTM so với ARIMA, chúng tôi so sánh hiệu quả dự báo của hai mô hình trên cùng tập kiểm tra (cửa sổ 5 phút). Kết quả so sánh được tóm tắt trong Bảng \ref{tab:lstm_vs_arima}.
+
+\begin{table}[H]
+    \centering
+    \caption{So sánh hiệu quả dự báo giữa LSTM và ARIMA cho cửa sổ 5 phút}
+    \label{tab:lstm_vs_arima}
+    \begin{tabular}{lcccc}
+        \toprule
+        Mô hình & RMSE & MAE & MAPE (\%) & Cải thiện RMSE (\%) \\
+        \midrule
+        ARIMA & 121.86 & 99.20 & 86.26 & - \\
+        LSTM & 44.59 & 33.86 & 26.91 & +63.4 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+Kết quả cho thấy LSTM vượt trội hơn ARIMA trên tất cả các chỉ số đánh giá: \textbf{RMSE} giảm từ 121.86 xuống 44.59 (cải thiện 63.4\%); \textbf{MAE} giảm từ 99.20 xuống 33.86 (cải thiện 65.9\%); và \textbf{MAPE} giảm từ 86.26\% xuống 26.91\% (cải thiện 68.8\%). Điều này cho thấy LSTM có khả năng nắm bắt các mẫu hình phi tuyến tính và dài hạn trong dữ liệu traffic tốt hơn nhiều so với ARIMA.
+
+Hình \ref{fig:hyperparameter_tuning} cho thấy so sánh hiệu quả dự báo của 7 cấu hình mô hình LSTM khác nhau trong quá trình hyperparameter tuning. Cấu hình small\_model với standard training và seq\_12 đạt được MAPE thấp nhất (26.94\%) và RMSE thấp nhất (44.52).
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{images/chapter4_hyperparameter_tuning.png}
+    \caption{So sánh hiệu quả dự báo giữa các cấu hình LSTM trong quá trình Hyperparameter Tuning}
+    \label{fig:hyperparameter_tuning}
+\end{figure}
+
+\section{Phân tích và đánh giá}
+
+\subsection{Phân tích quá trình học}
+
+Đường cong học (learning curve) của mô hình LSTM cho thấy quá trình huấn luyện diễn ra khá ổn định. Train loss giảm nhanh trong 8 epochs đầu tiên từ 0.019845 xuống 0.007070, sau đó giảm chậm hơn và bắt đầu ổn định. Validation loss cũng giảm tương tự, đạt giá trị tốt nhất là 0.005225 tại epoch 8. Sau epoch 8, validation loss bắt đầu tăng nhẹ, cho thấy mô hình bắt đầu overfitting.
+
+Cơ chế Early Stopping với patience = 10 đã kích hoạt tại epoch 18, dừng quá trình huấn luyện và tải lại trọng số từ epoch 8. Điều này giúp tránh overfitting và đảm bảo mô hình có khả năng tổng quát hóa tốt trên dữ liệu mới.
+
+\subsection{Phân tích dự báo}
+
+Biểu đồ so sánh giữa dự báo của LSTM và giá trị thực tế cho thấy mô hình LSTM nắm bắt được các mẫu hình chính trong dữ liệu traffic. Mô hình dự báo khá chính xác các xu hướng tăng và giảm của traffic, đặc biệt là các chu kỳ hàng ngày với traffic cao vào giờ làm việc (9h-17h) và thấp vào ban đêm (0h-6h).
+
+Tuy nhiên, mô hình vẫn có một số hạn chế. Đầu tiên, dự báo có độ trễ nhẹ so với giá trị thực tế, đặc biệt tại các điểm thay đổi đột ngột. Thứ hai, mô hình đôi khi dự báo quá thấp tại các điểm cực đại (peak traffic) và quá cao tại các điểm cực tiểu (low traffic). Cuối cùng, độ chính xác dự báo giảm nhẹ vào cuối tuần, có thể do dữ liệu training có ít mẫu hình vào cuối tuần hơn so với ngày trong tuần.
+
+\subsection{So sánh với baseline}
+
+Để đánh giá giá trị thực tế của mô hình LSTM, chúng tôi so sánh với hai mô hình baseline đơn giản: \textbf{Naive baseline} (dự báo bằng giá trị cuối cùng của tập huấn luyện) và \textbf{Mean baseline} (dự báo bằng giá trị trung bình của tập huấn luyện). Kết quả so sánh cho thấy LSTM vượt trội hơn đáng kể so với cả hai baseline.
+
+LSTM cải thiện 63.4\% về RMSE so với ARIMA và cải thiện khoảng 70\% so với các baseline đơn giản. Điều này cho thấy LSTM có giá trị gia tăng thực sự trong việc dự báo lưu lượng truy cập web, đặc biệt là khả năng nắm bắt các mẫu hình phi tuyến tính và dài hạn mà các mô hình thống kê truyền thống không thể làm được.
+
+\subsection{Ưu điểm và hạn chế}
+
+Mô hình LSTM có nhiều ưu điểm so với ARIMA và các mô hình thống kê truyền thống. Đầu tiên, LSTM có khả năng nắm bắt các mẫu hình phi tuyến tính và dài hạn trong dữ liệu, đặc biệt là các chu kỳ hàng ngày và hàng tuần. Thứ hai, LSTM có khả năng học được các đặc trưng từ dữ liệu đa biến, sử dụng cả error\_rate, hour\_sin, hour\_cos, is\_weekend để cải thiện độ chính xác dự báo. Thứ ba, LSTM có khả năng xử lý các chuỗi thời gian dài mà không gặp vấn đề vanishing gradient như RNN truyền thống. Cuối cùng, LSTM đạt được hiệu quả dự báo tốt hơn nhiều so với ARIMA, cải thiện 63.4\% về RMSE.
+
+Tuy nhiên, LSTM cũng có một số hạn chế. Đầu tiên, mô hình LSTM phức tạp hơn ARIMA và khó giải thích hơn, đặc biệt là các trọng số trong mạng nơ-ron không có ý nghĩa trực quan như các tham số trong ARIMA. Thứ hai, LSTM yêu cầu nhiều dữ liệu hơn để huấn luyện hiệu quả, đặc biệt là khi mô hình có nhiều tham số. Thứ ba, quá trình huấn luyện LSTM tốn nhiều thời gian và tài nguyên tính toán hơn so với ARIMA. Cuối cùng, LSTM nhạy cảm với việc lựa chọn siêu tham số, đòi hỏi quá trình hyperparameter tuning kỹ lưỡng.
+
+\subsection{Kết luận}
+
+Mô hình LSTM đã chứng minh được hiệu quả vượt trội so với ARIMA trong bài toán dự báo lưu lượng truy cập web. Với RMSE = 44.59, MAE = 33.86, và MAPE = 26.91\%, LSTM cải thiện đáng kể về độ chính xác dự báo so với ARIMA (RMSE = 121.86, MAE = 99.20, MAPE = 86.26\%). Điều này cho thấy LSTM có khả năng nắm bắt các mẫu hình phi tuyến tính và dài hạn trong dữ liệu traffic tốt hơn nhiều so với các mô hình thống kê truyền thống.
+
+Kiến trúc tối ưu cho LSTM là \texttt{input\_size = 5}, \texttt{hidden\_size = 32}, \texttt{num\_layers = 1}, \texttt{dropout = 0.1}, với tổng cộng 5,025 tham số. Quá trình huấn luyện sử dụng Early Stopping với patience = 10, dừng tại epoch 18 và tải lại trọng số từ epoch 8 với best validation loss = 0.005225.
+
+Mặc dù có một số hạn chế về độ phức tạp và tài nguyên tính toán, LSTM vẫn là lựa chọn tốt hơn ARIMA cho bài toán dự báo lưu lượng truy cập web, đặc biệt khi cần độ chính xác cao và khả năng nắm bắt các mẫu hình phi tuyến tính. Trong các chương tiếp theo, chúng tôi sẽ so sánh LSTM với các mô hình khác như Prophet và XGBoost để xác định mô hình tối ưu nhất cho từng cửa sổ thời gian.
