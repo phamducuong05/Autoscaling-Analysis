@@ -1,13 +1,13 @@
 # Autoscaling System Configuration
 
 server:
-  capacity: 100          # Requests per second per server
-  max_servers: 1000      # Circuit breaker limit
-  min_servers: 1         # Minimum active servers
+  capacity: 300          # Requests per minute (match your 1m window )
+  max_servers: 100       # Reasonable limit for the 1995 workload
+  min_servers: 2         # Always have a backup node
 
 cost:
-  server_hourly_rate: 0.1  # $0.1 per server per hour
-  sla_penalty_per_req: 5.0 # $5.0 penalty per dropped request (SLA breach)
+  server_hourly_rate: 0.05  # Standard Cloud Rate ($/hour) 
+  sla_penalty_per_req: 0.02 # Cost of losing one customer request
 
 safety:
   # Coefficient of Variation thresholds based on EDA
@@ -21,9 +21,18 @@ safety:
   economic_hours: [11, 12, 13, 14, 15, 16]
 
 cooldown:
-  scale_out_minutes: 1   # Fast reaction up
-  scale_in_minutes: 15   # Slow reaction down (Anti-flapping)
+  scale_out_minutes: 2   # Time for a new instance to be 'Warm' [cite: 43]
+  scale_in_minutes: 10   # Be conservative when shutting down servers
+
+stability:
+  window_minutes: 5      # Requirement: sustain high load for 5m 
+  scale_in_buffer: 1     # Hysteresis buffer to prevent flapping 
+  max_step_change: 2     # Max servers to add/remove at once (Step Scaling) 
 
 anomaly:
-  ddos_multiplier: 5.0   # If Load > Forecast * 5 -> DDoS suspected
-  ddos_max_servers: 50   # Cap servers during DDoS to save cost
+  ddos_multiplier: 4.0   # Identify spikes that are too sharp to be organic [cite: 51]
+  ddos_max_servers: 30   # Safety cap to prevent cost explosion [cite: 9]
+
+api:
+  host: "0.0.0.0"
+  port: 8000
