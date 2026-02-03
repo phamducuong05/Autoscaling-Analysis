@@ -48,8 +48,10 @@ def add_features(df_input, frequency='5m'):
         df.loc[mask, 'error_rate'] = df['error_rate'].shift(lag_7d_steps).loc[mask]
 
     # Forward fill và backward fill cho missing values
-    df['requests_target'] = df['requests_target'].fillna(method='ffill').fillna(0)
-    df['error_rate'] = df['error_rate'].fillna(method='ffill').fillna(0)
+    # Use simple forward fill for outages simulation
+    # In pandas 2.0+, method='ffill' is deprecated.
+    df['requests_target'] = df['requests_target'].ffill().fillna(0)
+    df['error_rate'] = df['error_rate'].ffill().fillna(0)
 
     # ===========================
     # 3. Create lag features

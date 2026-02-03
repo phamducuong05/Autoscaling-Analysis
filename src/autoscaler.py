@@ -41,22 +41,43 @@ class Autoscaler:
             return True
         return False
 
-    def decide_scale(self, timestamp_minute, current_load, forecast, hour):
+    def decide_scale(self, timestamp_minute, current_load, forecast, hour, sigma=0.0, cv=0.0):
         # 1. Anomaly Detection
         is_ddos = self.detect_ddos(current_load, forecast)
         
+        # Default Safety Factor from Config (Baseline)
         safety_factor = self.get_safety_factor(hour)
         
+        # --- GEN 2: ADAPTIVE SAFETY MARGIN ---
+        # Logic: K factor depends on CV (Model Confidence)
+        k_factor = 0.0
+        if cv < 0.1:
+            k_factor = 1.5 # High Confidence
+        elif cv <= 0.3:
+            k_factor = 2.0 # Normal
+        else:
+            k_factor = 3.0 # Low Confidence / Volatile -> High Safety
+            
         # 2. Raw Demand Calculation
         if is_ddos:
             raw_demand = math.ceil(current_load / self.capacity)
             raw_demand = min(raw_demand, self.cfg['anomaly']['ddos_max_servers'])
             safety_factor = 1.0 
         else:
-            # Hybrid Scaling
-            demand_pred = math.ceil((forecast * safety_factor) / self.capacity)
+            # Hybrid Scaling with Confidence
+            # Demand = (Forecast + K * Sigma) / Capacity
+            # If sigma is 0 (first run), we fall back to safety_factor multiplier method
+            
+            if sigma > 0:
+                adjusted_forecast = forecast + (k_factor * sigma)
+                demand_pred = math.ceil(adjusted_forecast / self.capacity)
+            else:
+                # Fallback to Gen 1 logic
+                demand_pred = math.ceil((forecast * safety_factor) / self.capacity)
+                
             demand_react = math.ceil((current_load * safety_factor) / self.capacity)
             raw_demand = max(demand_pred, demand_react)
+            
             # Circuit Breaker
             raw_demand = min(raw_demand, self.max_servers)
 

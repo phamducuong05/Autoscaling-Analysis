@@ -5,6 +5,15 @@ import requests
 import time
 import sys
 import os
+import logging
+
+# --- LOGGING ---
+logging.basicConfig(
+    level=logging.INFO, 
+    format="%(asctime)s [DASHBOARD] %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout)]
+)
+logger = logging.getLogger(__name__)
 
 # Fix path to allow importing from src
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../')))
@@ -12,22 +21,51 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../')))
 from src.utils import load_config
 
 # --- CONFIGURATION ---
+from src.data_loader import load_and_process_logs, resample_traffic
+from src.features import add_features
+
+# --- CONFIGURATION ---
 st.set_page_config(page_title="Autoscaling Live Demo", layout="wide")
 CONFIG = load_config()
 API_URL = f"http://{CONFIG['api']['host']}:{CONFIG['api']['port']}"
+TEST_DATA_PATH = "data/raw/test.txt"
 
 # --- HELPER FUNCTIONS ---
 @st.cache_data
 def load_data():
-    df = pd.read_csv('data/cleaned/data_1m.csv')
-    return df
+    """
+    Load raw test data, resample to 5-minute intervals, and add features.
+    """
+    if not os.path.exists(TEST_DATA_PATH):
+        st.error(f"File not found: {TEST_DATA_PATH}")
+        return pd.DataFrame()
+        
+    with st.spinner('Processing raw logs (Resampling to 5min)...'):
+        # 1. Parse Raw Logs
+        df_raw = load_and_process_logs([TEST_DATA_PATH])
+        
+        # 2. Resample to 5 Minutes
+        df_resampled = resample_traffic(df_raw, window='5min')
+        
+        # 3. Add Features (Cyclic Time, Weekend, etc.)
+        df_features = add_features(df_resampled, frequency='5m')
+        
+        # Reset index to make timestamp a column for iteration
+        df_features = df_features.reset_index()
+        
+        # Create step index for loop
+        df_features['step_index'] = range(len(df_features))
+        
+        return df_features
 
-def call_api(row, forecast_val):
+def call_api(row, forecast_val, sigma, cv):
     payload = {
         "timestamp_minute": int(row.name),
         "current_load": float(row['requests']),
         "forecast_load": float(forecast_val),
-        "hour_of_day": int(row['hour_of_day'])
+        "hour_of_day": int(row['hour_of_day']),
+        "sigma": float(sigma),
+        "cv": float(cv)
     }
     try:
         resp = requests.post(f"{API_URL}/recommend-scaling", json=payload)
@@ -46,7 +84,7 @@ st.markdown("### Real-time Traffic & Resource Management System")
 
 # Sidebar
 st.sidebar.header("🕹️ Simulation Controls")
-speed = st.sidebar.slider("Simulation Speed (ms)", 10, 500, 100)
+speed = st.sidebar.slider("Simulation Speed (ms)", 500, 5000, 1000)
 # Slice data for demo (e.g., specific event)
 start_idx = st.sidebar.number_input("Start Minute", 0, 100000, 42000) # Pick a busy time
 duration = st.sidebar.number_input("Duration (Minutes)", 60, 1000, 200)
@@ -66,18 +104,21 @@ if st.sidebar.button("🚀 Start Simulation"):
     col1, col2, col3, col4 = st.columns(4)
     metric_servers = col1.empty()
     metric_cost = col2.empty()
-    metric_dropped = col3.empty()
+    metric_cv = col3.empty() # Changed from metric_dropped
     metric_status = col4.empty()
     
     chart_placeholder = st.empty()
     
     # State Lists
-    history_time = []
-    history_load = []
-    history_capacity = []
-    history_servers = []
-    history_dropped = []
+    time_history = []
+    load_history = []
+    capacity_history = []
+    forecast_history = [] # New
+    upper_history = []    # New (Confidence Interval)
+    lower_history = []    # New
+    dropped_history = []  # Fixed: Added missing list
     total_cost = 0.0
+    total_requests = 0
     total_dropped = 0
     
     # --- SIMULATION LOOP ---
@@ -90,8 +131,16 @@ if st.sidebar.button("🚀 Start Simulation"):
     # Pre-fill history if possible
     if start_idx > history_window_size:
         history_buffer = df.iloc[start_idx-history_window_size : start_idx]['requests'].tolist()
+        error_buffer = [0.0] * history_window_size # Assume 0 errors
+        hour_sin_buffer = df.iloc[start_idx-history_window_size : start_idx]['hour_sin'].tolist()
+        hour_cos_buffer = df.iloc[start_idx-history_window_size : start_idx]['hour_cos'].tolist()
+        weekend_buffer = df.iloc[start_idx-history_window_size : start_idx]['is_weekend'].tolist()
     else:
          history_buffer = [0.0] * history_window_size
+         error_buffer = [0.0] * history_window_size
+         hour_sin_buffer = [0.0] * history_window_size
+         hour_cos_buffer = [0.0] * history_window_size
+         weekend_buffer = [0.0] * history_window_size
 
     for i, (idx, row) in enumerate(subset.iterrows()):
         
@@ -109,40 +158,69 @@ if st.sidebar.button("🚀 Start Simulation"):
         # Append current load to history
         current_load = row['requests']
         history_buffer.append(float(current_load))
+        error_buffer.append(0.0) # Placeholder for current step
+        hour_sin_buffer.append(float(row['hour_sin']))
+        hour_cos_buffer.append(float(row['hour_cos']))
+        weekend_buffer.append(float(row['is_weekend']))
+        
         if len(history_buffer) > history_window_size:
             history_buffer.pop(0)
+            error_buffer.pop(0)
+            hour_sin_buffer.pop(0)
+            hour_cos_buffer.pop(0)
+            weekend_buffer.pop(0)
             
         # Call Forecast Endpoint
         forecast_payload = {
             "timestamp_minute": int(row.name),
-            "recent_history": history_buffer
+            "recent_history": history_buffer,
+            "error_history": error_buffer,
+            "hour_sin_history": hour_sin_buffer,
+            "hour_cos_history": hour_cos_buffer,
+            "is_weekend_history": weekend_buffer,
+            "actual_load_current": float(current_load)
         }
         
         try:
+            logger.info(f"📤 Sending Forecast Request for Step {row['step_index']} (Min {row['step_index']*5})")
             resp_forecast = requests.post(f"{API_URL}/forecast", json=forecast_payload)
             if resp_forecast.status_code == 200:
-                forecast_val = resp_forecast.json()['forecast_load']
+                data = resp_forecast.json()
+                forecast_val = data['forecast_load']
+                sigma = data.get('sigma', 0.0) # Gen 2
+                cv = data.get('cv', 0.0)       # Gen 2
+                logger.info(f"   📥 Received Forecast: {forecast_val}, Sigma: {sigma:.2f}, CV: {cv:.3f}")
             else:
                 st.warning(f"Forecast API Error: {resp_forecast.status_code}")
-                forecast_val = current_load # Fallback
+                forecast_val = current_load 
+                sigma, cv = 0.0, 0.0
         except Exception as e:
             st.error(f"API Connection Error: {e}")
             break
         
         # 2. Call Decision API (Autoscaler)
-        # We pass the Forecast we just got
-        decision = call_api(row, forecast_val)
+        decision = call_api(row, forecast_val, sigma, cv)
         if not decision:
             break
+        
+        logger.info(f"   ⚖️  Scaling Decision: Servers={decision['servers']}, Action={decision['action']}")
             
         # 3. Update Metrics
         total_cost += decision['cost_infra'] + decision['cost_sla']
-        dropped = decision['details']['dropped']
+        total_requests += row['requests']
+        dropped = decision['dropped']
         total_dropped += dropped
         
+        # Update error history with actual observed error
+        current_error_rate = min(1.0, dropped / (row['requests'] + 1e-9))
+        error_buffer[-1] = current_error_rate
+        
+        # Track dropped history
+        dropped_history.append(dropped if dropped > 0 else None)
+        
         metric_servers.metric("Active Servers", f"{decision['servers']}", delta=decision['action'])
-        metric_cost.metric("Total Cost", f"${total_cost:,.2f}")
-        metric_dropped.metric("Dropped Req", f"{total_dropped}", delta_color="inverse")
+        metric_cost.metric("Total Cost ($)", f"{total_cost:.2f}")
+        metric_cv.metric("AI Confidence (CV)", f"{cv:.3f}", delta_color="inverse")
         
 
         status_msg = "✅ Stable"
@@ -156,79 +234,84 @@ if st.sidebar.button("🚀 Start Simulation"):
             status_msg = decision['action']
         metric_status.metric("System Status", status_msg)
 
-        # 4. Update Charts
-        history_time.append(i)
-        history_load.append(row['requests'])
-        history_capacity.append(decision['details']['capacity'])
-        history_servers.append(decision['servers'])
-        # Store dropped requests for visualization (None if no drop)
-        history_dropped.append(row['requests'] if dropped > 0 else None)
+        # 4. Update Plot Data
+        time_history.append(row['step_index'] * 5)
+        load_history.append(current_load)
+        capacity_history.append(decision['capacity'])
+        forecast_history.append(forecast_val)
         
-        # --- SLIDING WINDOW LOGIC (Optimize Performance) ---
-        # Only show last 60 minutes in the live chart to avoid browser lag
-        window_size = 60
-        if len(history_time) > window_size:
-            plot_time = history_time[-window_size:]
-            plot_load = history_load[-window_size:]
-            plot_capacity = history_capacity[-window_size:]
-            plot_dropped = history_dropped[-window_size:]
-        else:
-            plot_time = history_time
-            plot_load = history_load
-            plot_capacity = history_capacity
-            plot_dropped = history_dropped
-        
-        fig = go.Figure()
-        
-        # Real Capacity Area
-        fig.add_trace(go.Scatter(
-            x=plot_time, y=plot_capacity,
-            fill='tozeroy', mode='none',
-            name='Capacity',
-            fillcolor='rgba(0, 255, 0, 0.1)'
-        ))
-        
-        # Actual Load
-        fig.add_trace(go.Scatter(
-            x=plot_time, y=plot_load,
-            mode='lines', name='Actual Load',
-            line=dict(color='blue')
-        ))
-        
-        # Dropped Requests (Persistent in Window)
-        fig.add_trace(go.Scatter(
-            x=plot_time, y=plot_dropped,
-            mode='markers', name='Dropped',
-            marker=dict(color='red', size=10, symbol='x')
-        ))
-        
-        # Servers (Secondary Y-axis could be useful, or just overlay capacity)
-        # User requested: "số lượng server (đường màu đỏ)"
-        # But servers * capacity = capacity line. Let's just stick to Capacity for visual clarity on "Dropped"
-        
-        # Highlight Drops
+        # Confidence Interval (Upper/Lower) - 2 Sigma (~95%)
+        upper_bound = forecast_val + (2 * sigma)
+        lower_bound = max(0, forecast_val - (2 * sigma))
+        upper_history.append(upper_bound)
+        lower_history.append(lower_bound)
 
+        # Draw Real-time Chart
+        with chart_placeholder.container():
+            fig = go.Figure()
+            
+            # SLIDING WINDOW LOGIC (Optimize Performance)
+            # Only show last 50 points
+            window = 50
+            if len(time_history) > window:
+                plot_time = time_history[-window:]
+                plot_load = load_history[-window:]
+                plot_capacity = capacity_history[-window:]
+                plot_forecast = forecast_history[-window:]
+                plot_upper = upper_history[-window:]
+                plot_lower = lower_history[-window:]
+            else:
+                plot_time = time_history
+                plot_load = load_history
+                plot_capacity = capacity_history
+                plot_forecast = forecast_history
+                plot_upper = upper_history
+                plot_lower = lower_history
 
-        fig.update_layout(
-            title="Load vs Capacity",
-            xaxis_title="Simulation Minute",
-            yaxis_title="Requests / Minute",
-            height=400,
-            margin=dict(l=0, r=0, t=30, b=0)
-        )
-        
-        # Streamlit 1.40+ compatibility: use_container_width is deprecated
-        try:
-            chart_placeholder.plotly_chart(fig, use_container_width=True)
-        except:
-             # Fallback if new version enforces 'width' kwarg, though the warning usually allows the old one to work.
-             # The user log says "Please replace...", implying it still works but prints warning.
-             # To silence warning:
-             # st.plotly_chart(fig, width="stretch") # Only valid in newest.
-             # Let's try the safest "use_container_width=True" but ignore warning?
-             # User specifically asked to FIX it.
-             # Warning: For use_container_width=True, use width='stretch'.
-             chart_placeholder.plotly_chart(fig, width="stretch")
+            # 1. Confidence Band (Shaded)
+            # We create a closed shape by concatenating upper and reversed lower bound
+            fig.add_trace(go.Scatter(
+                x=plot_time + plot_time[::-1],
+                y=plot_upper + plot_lower[::-1],
+                fill='toself',
+                fillcolor='rgba(255, 127, 14, 0.2)',
+                line=dict(color='rgba(255,255,255,0)'),
+                hoverinfo="skip",
+                name='Confidence Interval (2σ)'
+            ))
+            
+            # 2. System Capacity
+            fig.add_trace(go.Scatter(
+                x=plot_time, y=plot_capacity,
+                mode='lines', name='System Capacity',
+                line=dict(color='#2ca02c', width=2, dash='dash')
+            ))
+            
+            # 3. AI Forecast
+            fig.add_trace(go.Scatter(
+                x=plot_time, y=plot_forecast,
+                mode='lines', name='AI Forecast',
+                line=dict(color='#ff7f0e', width=2)
+            ))
+            
+            # 4. Actual Load
+            fig.add_trace(go.Scatter(
+                x=plot_time, y=plot_load,
+                mode='lines', name='Actual Load',
+                line=dict(color='#1f77b4', width=2)
+            ))
+            
+            fig.update_layout(
+                title="Real-time Autoscaling Monitor (Gen 2)",
+                xaxis_title="Time (Minutes)",
+                yaxis_title="Requests / Capacity",
+                height=450,
+                margin=dict(l=20, r=20, t=40, b=20),
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+            )
+            
+            # Streamlit 1.40+ compatibility
+            st.plotly_chart(fig, use_container_width=True)
         
         # 5. Sleep
         time.sleep(speed / 1000)
@@ -242,20 +325,20 @@ if st.sidebar.button("🚀 Start Simulation"):
     fig_full = go.Figure()
     
     fig_full.add_trace(go.Scatter(
-        x=history_time, y=history_capacity,
+        x=time_history, y=capacity_history,
         fill='tozeroy', mode='none',
         name='Capacity',
         fillcolor='rgba(0, 255, 0, 0.1)'
     ))
     
     fig_full.add_trace(go.Scatter(
-        x=history_time, y=history_load,
+        x=time_history, y=load_history,
         mode='lines', name='Actual Load',
         line=dict(color='blue')
     ))
     
     fig_full.add_trace(go.Scatter(
-        x=history_time, y=history_dropped,
+        x=time_history, y=dropped_history,
         mode='markers', name='Dropped',
         marker=dict(color='red', size=8, symbol='x')
     ))
