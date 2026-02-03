@@ -1,0 +1,177 @@
+%----------------------------------------------------
+% The following is a list of LaTeX packages imports |
+%------->------>------>------>------>------>---->---|
+%
+
+% The margins at the bottom of the page has been reduced.
+% this allows for a slim footer.
+\usepackage[left=2cm,right=2cm,top=2cm,bottom=2cm]{geometry}
+% Original size:
+%\usepackage[inner=1.5cm,outer=1.5cm,top=1.5cm,bottom=.5cm,margin=1in]{geometry}
+\usepackage[
+    colorlinks,
+    %pagebackref,
+    pdfusetitle,
+    urlcolor=blue,
+    citecolor=blue,
+    linkcolor=blue,    
+    plainpages=false]
+{hyperref}            
+% ftp://ftp.dante.de/tex-archive/fonts/bbding/bbding.pdf
+%https://ctan.math.illinois.edu/fonts/bbding/bbding.pdf
+\usepackage{fancyhdr, lastpage, bbding, pmboxdraw}
+\usepackage{fancyvrb}
+\usepackage{bigints}
+\usepackage{amsfonts}
+\usepackage{pifont}
+\usepackage{float}
+\PassOptionsToPackage{usenames,dvipsnames}{xcolor}
+\usepackage{graphicx,wrapfig,lipsum}
+\usepackage{graphicx}
+\usepackage{acronym}
+\usepackage{amsthm}
+\usepackage{amssymb}
+\usepackage{amsmath}
+\usepackage{caption}
+\usepackage{xcolor}
+\usepackage{bigints}
+\usepackage{enumitem}
+\usepackage{tabularx}
+\usepackage{xltabular}
+\usepackage{hyphenat}
+\newcommand{\HY}{\hyphenpenalty=10000\exhyphenpenalty=10000}
+\newcolumntype{B}{>{\HY\hsize=.4\hsize}X}
+\newcolumntype{M}{>{\HY\hsize=.3\hsize}X}
+\newcolumntype{S}{>{\HY\hsize=.3\hsize}X}
+\usepackage{multirow}
+\usepackage{multicol}
+\usepackage{makecell}
+\usepackage{sectsty}
+\usepackage{ragged2e}
+\usepackage{framed}
+%\usepackage{cite}
+\sectionfont{\raggedright}
+\subsectionfont{\raggedright}
+\subsubsectionfont{\raggedright}
+%\normalfont{\raggedright}
+% pifont package doc at: https://ctan.math.ca/tex-archive/macros/latex/required/psnfss/psnfss2e.pdf
+% pifont is used to define custom list and style list items using the \ding command. 
+\usepackage{pifont} 
+% bclogo used for making a colored box for notes. 
+% @see: https://ctan.org/pkg/bclogo?lang=en
+\usepackage[tikz]{bclogo} 
+\usepackage{titlesec}  
+\usepackage[open,openlevel=1]{bookmark}
+
+%-- @see http://ctan.sharelatex.com/tex-archive/fonts/fontawesome/doc/fontawesome.pdf
+% Font Awesome  http://ctan.math.washington.edu/tex-archive/fonts/fontawesome5/doc/fontawesome5.pdf
+% https://muug.ca/mirror/ctan/fonts/fontawesome5/doc/fontawesome5.pdf
+\usepackage{fontawesome5}
+%---------------------------------
+% ==== Font setup.
+% Load any of the following fonts.
+%---------------------------------
+%\usepackage{lmodern}
+%\usepackage{mathptmx}
+%\usepackage{times}
+\usepackage{mathpazo} % Palatino font.
+%\linespread{1.05} % Palatino needs more leading (space between lines)
+%\usepackage{tgbonum} % For Bonum/Bookman font.
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{listings}
+%---------------------------------
+\usepackage{booktabs} 
+
+\pagestyle{empty}
+\usepackage{graphicx}
+\usepackage{blindtext}  
+\usepackage{vhistory} % for making a table for the revision history.
+
+%------------------ Code listing
+\usepackage{listings} %For code in appendix
+\lstset
+{ %Formatting for code in appendix
+	%language=Python,
+	basicstyle=\small,
+	numbers=left,
+	stepnumber=1,
+	showstringspaces=false,
+	tabsize=1,
+	breaklines=true,
+	breakatwhitespace=false,
+	frame=leftline
+}
+\usepackage{algpseudocode}
+
+%-------------------
+
+\usepackage[Lenny]{fncychap}
+\ChTitleVar{\Huge\scshape\bfseries}
+\ChNameVar{\Large\bfseries}
+\ChNumVar{\fontsize{60}{62}\bfseries}
+%Options: Sonny, Lenny, Glenn, Conny, Rejne, Bjarne, Bjornstru
+
+\titleformat{\section}
+{\normalfont\Large\scshape}{\thesection}{1em}{}[{\titlerule[1pt]}]
+
+%\titleformat{\part}
+%[display]
+%{\centering\normalfont\Large}
+%{\titlerule[3pt]\vspace{3pt}\titlerule[1pt]\vspace{3pt}\Uppercase{\partname} \thepart}
+%{0pt}
+%{\titlerule[1pt]\vspace{3pt}\titlerule[3pt]\vspace{4pc}\bfseries\huge\scshape}
+
+%\titleformat{\part}[frame]
+%{\normalfont\Large}
+%{\filright
+%	\vspace{1cm}
+%	\enspace \bfseries  Part \thepart \enspace
+%	\vspace{1cm}
+%}
+%{8pt}
+%{\huge\bfseries\filcenter\scshape}
+%\titlespacing*{\part}{0pt}{0pt}{20pt}
+
+\titleformat{\part}[display]
+{\bfseries\huge\scshape}
+{\centering Part \thepart}
+{4ex}
+{\titlerule
+	\vspace{2ex}%
+	\centering}
+[\vspace{2ex}%
+\titlerule]
+\usepackage{listings}
+\usepackage{xcolor}
+
+\lstdefinelanguage{MIPS}{
+    morekeywords={add, sub, lw, sw, li, la, b, beq, bne, j, jal, jr, move, addi, and, andi, or, ori, xor, xori, sll, srl, sra, slt, slti, sltu, sltiu, lui, mfhi, mflo, mult, multu, div, divu, nop, syscall},
+    sensitive=true,
+    morecomment=[l]{\#},
+    morestring=[b]",
+    alsoletter= \$
+}
+\lstset{
+    language=MIPS,
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{blue}\bfseries,
+    commentstyle=\color[RGB]{0,128,0}, % Xanh lá cây đậm hơn
+    stringstyle=\color{red},
+    numbers=left,
+    numberstyle=\tiny\color{gray},
+    stepnumber=1,
+    numbersep=10pt,
+    backgroundcolor=\color{lightgray!20},
+    showspaces=false,
+    showstringspaces=false,
+    frame=single,
+    captionpos=b,
+    breaklines=true,
+    breakatwhitespace=false,
+    tabsize=4,
+    xleftmargin=20pt,   % Căn lề trái rộng hơn
+    xrightmargin=20pt,  % Căn lề phải rộng hơn
+    escapeinside={(*@}{@*)},
+    moredelim=[s][\color{red}]{\$}{\ }
+}

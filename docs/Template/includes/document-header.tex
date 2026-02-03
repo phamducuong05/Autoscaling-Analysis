@@ -1,0 +1,64 @@
+%--------------------------------------------------------------------------
+%- The following produces the document header including the title.        |
+%- The document header includes: the college/university name, faculty,    |
+%- department, course number and title as well as the assignment/homework | 
+%- title and due date.                                                    | 
+%-------------------------------------------------------------------------|
+%
+\noindent % <-- need to have this first.
+%
+\begin{minipage}{.7\textwidth}
+    { \textsc{\textbf{\college}}}{ }\\
+    \small\textsc{\faculty}\\%
+    \small\textsc{\department}
+\end{minipage}%
+\hfill
+\begin{minipage}{0.3\textwidth}%
+    \raggedleft%
+    {\Large \textsc{\textbf{\coursenumber}} \par}
+    \doublerule % insert a double rule.
+    \textsc{\coursetitle}\\
+\end{minipage}%
+\vskip 5pt
+\hrule \vskip 2pt \hrule
+\vspace{1.5cm}
+{
+    %--> Insert homework title and due date.
+	\vspace{1.5cm}
+    \vspace{1cm}
+    \begin{center}
+        \scshape
+        \Huge \color{darkestred}{\doctitle}{ }
+        \vspace{1cm}
+    \end{center}
+    \vspace{1.5cm}
+    \vspace{1cm}
+}
+{
+    \hrule \vskip 2pt \hrule \vspace{1cm}
+
+    \centering  \textsc{\textbf{\Large Autoscaling Analysis}} \\
+    \vspace{.2cm}
+    \textsc{\textbf{\large Dự đoán lưu lượng HTTP và Tự động mở rộng máy chủ}} \\
+    \vspace{.4cm}
+    \textsc{Cuộc thi: \csection \ - Năm: \semester} \\
+ \vspace{.3cm}
+    \vspace{.3cm}\vskip 22pt
+    \small{\textbf{\normalsize \textsc}\\ \vskip 13pt
+        \begin{tabular}{l c l}
+            [Tên thành viên 1] & [MSSV 1] & [Email 1] \\ \relax
+            [Tên thành viên 2] & [MSSV 2] & [Email 2] \\ \relax
+            [Tên thành viên 3] & [MSSV 3] & [Email 3] \\
+        \end{tabular}
+    }
+    \\
+        \vspace{4cm}
+	\vskip 20pt
+    \vfill
+	\textbf{\normalsize \textsc{Ban tổ chức:} \instructor} \\
+    \vspace{.5cm}
+}
+\vspace{.5cm}
+\hrule
+\vskip 4cm
+\textbf{}
