@@ -4,42 +4,11 @@
 
 Mô hình LSTM (Long Short-Term Memory) là một biến thể nâng cao của mạng nơ-ron hồi quy truyền thống (RNN), được thiết kế đặc biệt để giải quyết vấn đề \textit{vanishing gradient} trong quá trình huấn luyện các chuỗi thời gian dài. LSTM được giới thiệu lần đầu bởi Hochreiter và Schmidhuber năm 1997 và đã trở thành một trong những kiến trúc mạng nơ-ron thành công nhất cho các bài toán chuỗi thời gian, xử lý ngôn ngữ tự nhiên và nhận dạng giọng nói.
 
-LSTM hoạt động dựa trên cơ chế \textit{cell state} (trạng thái ô) và \textit{hidden state} (trạng thái ẩn), cho phép mô hình lưu trữ và truy xuất thông tin trong khoảng thời gian dài mà không bị mất mát thông tin quan trọng. Mỗi ô LSTM chứa ba cổng chính điều khiển dòng chảy thông tin: \textbf{Forget Gate} quyết định thông tin nào từ trạng thái ô cũ sẽ bị loại bỏ; \textbf{Input Gate} quyết định thông tin mới nào sẽ được lưu trữ trong trạng thái ô; và \textbf{Output Gate} quyết định thông tin nào từ trạng thái ô sẽ được xuất ra như trạng thái ẩn mới.
-
-Công thức toán học của ba cổng trong LSTM được biểu diễn như sau:
-
-\begin{equation}
-f_t = \sigma(W_f \cdot [h_{t-1}, x_t] + b_f)
-\end{equation}
-\begin{equation}
-i_t = \sigma(W_i \cdot [h_{t-1}, x_t] + b_i)
-\end{equation}
-\begin{equation}
-\tilde{C}_t = \tanh(W_C \cdot [h_{t-1}, x_t] + b_C)
-\end{equation}
-\begin{equation}
-C_t = f_t * C_{t-1} + i_t * \tilde{C}_t
-\end{equation}
-\begin{equation}
-o_t = \sigma(W_o \cdot [h_{t-1}, x_t] + b_o)
-\end{equation}
-\begin{equation}
-h_t = o_t * \tanh(C_t)
-\end{equation}
-
-Trong đó: \texttt{f\_t} là forget gate tại thời điểm \texttt{t}; \texttt{i\_t} là input gate; \texttt{o\_t} là output gate; \texttt{C\_t} là cell state; \texttt{h\_t} là hidden state; \texttt{x\_t} là input tại thời điểm \texttt{t}; \texttt{$\sigma$} là hàm sigmoid; \texttt{tanh} là hàm hyperbolic tangent; và \texttt{W, b} là các trọng số và bias tương ứng.
-
-LSTM đặc biệt phù hợp cho bài toán dự báo lưu lượng truy cập web vì: (1) khả năng nắm bắt các mẫu hình dài hạn (long-term dependencies) trong chuỗi thời gian, như chu kỳ hàng ngày và hàng tuần; (2) khả năng xử lý các chuỗi thời gian không tuyến tính và phức tạp mà các mô hình thống kê truyền thống như ARIMA không thể nắm bắt; (3) khả năng học được các đặc trưng từ dữ liệu đa biến (multivariate features) như error rate, hour\_sin, hour\_cos, is\_weekend; và (4) khả năng xử lý các chuỗi thời gian dài mà không gặp vấn đề vanishing gradient như RNN truyền thống.
-
 \section{Phương pháp huấn luyện}
 
 \subsection{Chuẩn bị dữ liệu}
 
-Trước khi huấn luyện mô hình LSTM, chúng tôi thực hiện các bước chuẩn bị dữ liệu quan trọng để đảm bảo mô hình hoạt động hiệu quả. Đầu tiên, chúng tôi lựa chọn các đặc trưng quan trọng cho mô hình bằng cách sử dụng \textit{Random Forest Regressor} để đánh giá mức độ quan trọng của từng đặc trưng. Kết quả cho thấy các đặc trưng quan trọng nhất là: \textbf{hour\_cos} (0.450), \textbf{is\_weekend} (0.322), \textbf{hour\_sin} (0.181), và \textbf{error\_rate} (0.047). Dựa trên kết quả này, chúng tôi chọn 5 đặc trưng đầu vào cho mô hình LSTM: \texttt{requests\_target}, \texttt{error\_rate}, \texttt{hour\_sin}, \texttt{hour\_cos}, và \texttt{is\_weekend}.
-
-Tiếp theo, chúng tôi thực hiện \textbf{Data Split} theo trình tự thời gian để đảm bảo tính công bằng khi đánh giá mô hình. Dữ liệu được chia thành ba tập: \textbf{Training set} từ 02/07/1995 đến 16/08/1995 với 13,248 quan sát (khoảng 60\% dữ liệu); \textbf{Validation set} từ 17/08/1995 đến 22/08/1995 với 1,728 quan sát (khoảng 20\% dữ liệu); và \textbf{Test set} từ 23/08/1995 đến 31/08/1995 với 2,592 quan sát (khoảng 20\% dữ liệu). Việc chia dữ liệu theo trình tự thời gian này đảm bảo mô hình được huấn luyện trên quá khứ và dự báo cho tương lai, giả lập đúng cách mà các hệ thống dự báo hoạt động trong thực tế.
-
-Sau khi chia dữ liệu, chúng tôi thực hiện \textbf{Normalization} bằng cách sử dụng \textit{MinMaxScaler} để chuyển đổi các đặc trưng về khoảng [0, 1]. Điều này giúp mô hình hội tụ nhanh hơn và ổn định hơn trong quá trình huấn luyện. Quan trọng là chúng tôi chỉ fit scaler trên training data để tránh data leakage, sau đó áp dụng cùng scaler cho validation và test set.
+Để tối ưu hóa quá trình huấn luyện mô hình LSTM, công tác chuẩn bị dữ liệu được thực hiện chặt chẽ bắt đầu bằng việc lựa chọn đặc trưng dựa trên đánh giá của \textit{Random Forest Regressor}, qua đó xác định 5 biến đầu vào thiết yếu gồm \texttt{requests\_target}, \texttt{error\_rate}, \texttt{hour\_sin}, \texttt{hour\_cos} (trọng số 0.450), và \texttt{is\_weekend} (0.322). Dữ liệu sau đó được phân chia theo trình tự thời gian để mô phỏng chính xác kịch bản dự báo thực tế, bao gồm tập \textbf{Training} (02/07--16/08, chiếm $\sim$60\%), \textbf{Validation} (17/08--22/08, $\sim$20\%) và \textbf{Test} (23/08--31/08, $\sim$20\%). Cuối cùng, chúng tôi áp dụng \textit{MinMaxScaler} để chuẩn hóa các đặc trưng về khoảng $[0, 1]$ giúp mô hình hội tụ nhanh hơn, đồng thời tuân thủ nghiêm ngặt nguyên tắc chỉ khớp (fit) scaler trên tập training trước khi áp dụng cho các tập còn lại nhằm ngăn chặn hiện tượng rò rỉ dữ liệu (data leakage).
 
 \subsection{Sequence Creation}
 
@@ -167,12 +136,6 @@ Hình \ref{fig:hyperparameter_tuning} cho thấy so sánh hiệu quả dự báo
 \end{figure}
 
 \section{Phân tích và đánh giá}
-
-\subsection{Phân tích quá trình học}
-
-Đường cong học (learning curve) của mô hình LSTM cho thấy quá trình huấn luyện diễn ra khá ổn định. Train loss giảm nhanh trong 8 epochs đầu tiên từ 0.019845 xuống 0.007070, sau đó giảm chậm hơn và bắt đầu ổn định. Validation loss cũng giảm tương tự, đạt giá trị tốt nhất là 0.005225 tại epoch 8. Sau epoch 8, validation loss bắt đầu tăng nhẹ, cho thấy mô hình bắt đầu overfitting.
-
-Cơ chế Early Stopping với patience = 10 đã kích hoạt tại epoch 18, dừng quá trình huấn luyện và tải lại trọng số từ epoch 8. Điều này giúp tránh overfitting và đảm bảo mô hình có khả năng tổng quát hóa tốt trên dữ liệu mới.
 
 \subsection{Phân tích dự báo}
 
