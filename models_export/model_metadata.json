@@ -1,0 +1,80 @@
+{
+    "timestamp": "2026-02-03T17:28:54.183920",
+    "model_name": "lstm_5m_best_model",
+    "frequency": "5m",
+    "model_architecture": {
+        "input_size": 5,
+        "hidden_size": 32,
+        "num_layers": 1,
+        "output_size": 1
+    },
+    "model_weights_path": "D:\\Documents\\AutoScaling Analysis\\Autoscaling-Analysis\\models\\lstm_5m_best_model.pth",
+    "training_config": {
+        "sequence_length": 12,
+        "batch_size": 32,
+        "learning_rate": 0.001,
+        "epochs": 50,
+        "patience": 10
+    },
+    "features": [
+        "requests_target",
+        "error_rate",
+        "hour_sin",
+        "hour_cos",
+        "is_weekend"
+    ],
+    "feature_count": 5,
+    "scaler_info": {
+        "features": {
+            "feature_range": [
+                0,
+                1
+            ],
+            "data_min": [
+                1.0,
+                0.0,
+                -1.0,
+                -1.0,
+                0.0
+            ],
+            "data_max": [
+                591.0,
+                0.4878048780368828,
+                1.0,
+                1.0,
+                1.0
+            ]
+        },
+        "target": {
+            "feature_range": [
+                0,
+                1
+            ],
+            "data_min": [
+                1.0
+            ],
+            "data_max": [
+                591.0
+            ]
+        }
+    },
+    "evaluation_metrics": {
+        "rmse": 44.59093724704957,
+        "mae": 33.862876892089844,
+        "mape": 26.913394927978516,
+        "mse": 1988.3516845703125
+    },
+    "inference_config": {
+        "sequence_length": 12,
+        "expected_input_shape": [
+            null,
+            12,
+            5
+        ],
+        "output_shape": [
+            null,
+            1
+        ],
+        "device": "cpu"
+    }
+}

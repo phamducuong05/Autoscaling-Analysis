@@ -1,0 +1,132 @@
+# LSTM Training Configuration for Hyperparameter Tuning
+
+# ===========================
+# Model Configurations
+# ===========================
+model_configs:
+  - name: "small_model"
+    input_size: 5
+    hidden_size: 32
+    num_layers: 1
+    dropout: 0.1
+    description: "Lightweight model for fast training"
+
+  - name: "medium_model"
+    input_size: 5
+    hidden_size: 64
+    num_layers: 2
+    dropout: 0.2
+    description: "Balanced model (current default)"
+
+  - name: "large_model"
+    input_size: 5
+    hidden_size: 128
+    num_layers: 2
+    dropout: 0.3
+    description: "Large model for better capacity"
+
+  - name: "deep_model"
+    input_size: 5
+    hidden_size: 128
+    num_layers: 3
+    dropout: 0.3
+    description: "Deeper architecture"
+
+# ===========================
+# Training Hyperparameters
+# ===========================
+training_configs:
+  - name: "aggressive"
+    batch_size: 16
+    learning_rate: 0.001
+    epochs: 100
+    patience: 10
+    description: "Aggressive learning with small batch"
+
+  - name: "standard"
+    batch_size: 32
+    learning_rate: 0.001
+    epochs: 50
+    patience: 5
+    description: "Standard configuration (current default)"
+
+  - name: "conservative"
+    batch_size: 64
+    learning_rate: 0.0005
+    epochs: 50
+    patience: 5
+    description: "Conservative learning with large batch"
+
+  - name: "fine_tuning"
+    batch_size: 32
+    learning_rate: 0.0001
+    epochs: 30
+    patience: 3
+    description: "Fine-tuning with small learning rate"
+
+# ===========================
+# Data Preprocessing
+# ===========================
+data_configs:
+  - name: "seq_12"
+    sequence_length: 12
+    description: "1 hour lookback (5m * 12 = 60m)"
+
+  - name: "seq_24"
+    sequence_length: 24
+    description: "2 hour lookback (5m * 24 = 120m)"
+
+  - name: "seq_36"
+    sequence_length: 36
+    description: "3 hour lookback (5m * 36 = 180m)"
+
+  - name: "seq_48"
+    sequence_length: 48
+    description: "4 hour lookback (5m * 48 = 240m)"
+
+# ===========================
+# Tuning Grid (Combinations to test)
+# ===========================
+tuning_grid:
+  - model: "small_model"
+    training: "standard"
+    data: "seq_12"
+    priority: "high"
+
+  - model: "medium_model"
+    training: "standard"
+    data: "seq_12"
+    priority: "high"
+
+  - model: "large_model"
+    training: "standard"
+    data: "seq_12"
+    priority: "high"
+
+  - model: "medium_model"
+    training: "aggressive"
+    data: "seq_12"
+    priority: "medium"
+
+  - model: "medium_model"
+    training: "conservative"
+    data: "seq_12"
+    priority: "medium"
+
+  - model: "medium_model"
+    training: "standard"
+    data: "seq_24"
+    priority: "medium"
+
+  - model: "deep_model"
+    training: "standard"
+    data: "seq_12"
+    priority: "low"
+
+# ===========================
+# Best Config (to use after tuning)
+# ===========================
+best_config:
+  model: "medium_model"
+  training: "standard"
+  data: "seq_12"
