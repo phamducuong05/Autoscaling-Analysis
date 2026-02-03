@@ -4,16 +4,6 @@
 
 Mô hình ARIMA (AutoRegressive Integrated Moving Average) là một phương pháp thống kê kinh điển trong dự báo chuỗi thời gian, kết hợp ba thành phần chính để nắm bắt và dự báo các mẫu hình trong dữ liệu. Ba thành phần này bao gồm: \textbf{AR (AutoRegressive)} sử dụng các giá trị quá khứ để dự báo giá trị tương lai; \textbf{I (Integrated)} áp dụng phép sai phân (differencing) để biến đổi chuỗi thời gian thành chuỗi dừng (stationary); và \textbf{MA (Moving Average)} sử dụng các sai số dự báo quá khứ để cải thiện độ chính xác của dự báo.
 
-Mô hình ARIMA được ký hiệu là \texttt{ARIMA(p,d,q)}, trong đó: \texttt{p} là bậc của thành phần tự hồi quy (số lượng giá trị quá khứ được sử dụng), \texttt{d} là số lần áp dụng sai phân để đạt được tính dừng, và \texttt{q} là bậc của thành phần trung bình động (số lượng sai số dự báo quá khứ được sử dụng). Công thức toán học của mô hình ARIMA có thể được biểu diễn như sau:
-
-\begin{equation}
-y_t = c + \sum_{i=1}^{p} \phi_i y_{t-i} + \sum_{j=1}^{q} \theta_j \varepsilon_{t-j}
-\end{equation}
-
-Trong đó: \texttt{y\_t} là giá trị tại thời điểm \texttt{t}, \texttt{c} là hằng số, \texttt{$\phi\_i$} là các hệ số tự hồi quy, \texttt{$\theta\_j$} là các hệ số trung bình động, và \texttt{$\varepsilon\_t$} là sai số trắng (white noise error).
-
-Mô hình ARIMA đặc biệt phù hợp cho bài toán dự báo lưu lượng truy cập web vì: (1) dữ liệu chuỗi thời gian đơn biến (số lượng request) có tính dừng hoặc có thể biến đổi thành dừng thông qua sai phân; (2) có cấu trúc tự tương quan (autocorrelation) rõ rệt trong dữ liệu traffic; (3) các tham số có thể giải thích được, giúp hiểu rõ các yếu tố ảnh hưởng đến lưu lượng; và (4) phù hợp làm baseline trước khi thử nghiệm các mô hình phức tạp hơn như Prophet, LSTM, hay XGBoost.
-
 \section{Phương pháp huấn luyện}
 
 Trước khi huấn luyện mô hình ARIMA, chúng tôi thực hiện các bước chuẩn bị dữ liệu và phân tích đặc điểm để đảm bảo dữ liệu đáp ứng các giả định của mô hình.
@@ -101,24 +91,6 @@ Bảng \ref{tab:performance_5m} tóm tắt hiệu quả dự báo của mô hìn
 \section{Model Diagnostics}
 
 Sau khi huấn luyện xong mô hình, chúng tôi thực hiện các kiểm tra chẩn đoán để xác nhận mô hình có đáp ứng các giả định của ARIMA.
-
-\subsection{Kiểm tra Ljung-Box}
-
-Kiểm tra Ljung-Box được sử dụng để đánh giá xem các phần dư (residuals) của mô hình có tự tương quan hay không. Giả thuyết null là các phần dư không có tự tương quan (white noise). Nếu \texttt{p-value > 0.05}, chúng tôi không thể bác bỏ giả thuyết null, cho thấy các phần dư là white noise (tốt). Nếu \texttt{p-value $\le$ 0.05}, các phần dư có tự tương quan, cho thấy mô hình chưa nắm bắt được hết các mẫu hình trong dữ liệu.
-
-Kết quả kiểm tra Ljung-Box cho cửa sổ 5 phút có \texttt{p-value = 0.082677} (> 0.05), cho thấy các phần dư là white noise (tốt). Điều này cho thấy mô hình đã nắm bắt được hầu hết các mẫu hình trong dữ liệu.
-
-\subsection{Kiểm tra Jarque-Bera}
-
-Kiểm tra Jarque-Bera được sử dụng để đánh giá xem các phần dư có phân phối chuẩn hay không. Giả thuyết null là các phần dư có phân phối chuẩn. Nếu \texttt{p-value > 0.05}, chúng tôi không thể bác bỏ giả thuyết null, cho thấy các phần dư có phân phối chuẩn (tốt). Nếu \texttt{p-value $\le$ 0.05}, các phần dư không có phân phối chuẩn.
-
-Kết quả kiểm tra Jarque-Bera cho cửa sổ 5 phút có \texttt{p-value = 0.000000}, nhỏ hơn nhiều so với mức ý nghĩa 0.05, cho thấy các phần dư không có phân phối chuẩn. Điều này cho thấy dữ liệu traffic có phân phối lệch (skewed) với nhiều giá trị outlier, đặc biệt vào giờ cao điểm.
-
-\subsection{Kiểm tra Durbin-Watson}
-
-Kiểm tra Durbin-Watson được sử dụng để đánh giá xem có tự tương quan bậc nhất trong các phần dư hay không. Thống kê Durbin-Watson có giá trị từ 0 đến 4, trong đó giá trị 2 cho thấy không có tự tương quan bậc nhất. Kết quả kiểm tra cho cửa sổ 5 phút có \texttt{DW statistic = 1.9967}, gần 2.0, cho thấy không có tự tương quan bậc nhất đáng kể trong các phần dư.
-
-\subsection{Đồ thị chẩn đoán mô hình}
 
 Hình \ref{fig:diagnostics_5m} cho thấy đồ thị chẩn đoán mô hình cho cửa sổ 5 phút. Đồ thị bao gồm: (1) Residuals over time (phần trên trái) cho thấy các phần dư dao động quanh giá trị 0; (2) Residuals distribution (phần trên phải) cho thấy phân phối gần chuẩn với mean gần 0; (3) Q-Q plot (phần dưới trái) cho thấy các điểm gần như nằm trên đường chéo, cho thấy phân phối gần chuẩn; và (4) ACF of residuals (phần dưới phải) cho thấy không có cột nào vượt quá vùng tin cậy, cho thấy không có tự tương quan đáng kể trong các phần dư.
 

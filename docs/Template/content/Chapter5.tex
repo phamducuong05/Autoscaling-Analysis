@@ -4,37 +4,11 @@
 
 Mô hình XGBoost (eXtreme Gradient Boosting) là một thuật toán học máy thuộc nhóm Gradient Boosting, được phát triển bởi Tianqi Chen và Carlos Guestrin năm 2016. XGBoost đã trở thành một trong những thuật toán phổ biến nhất trong các cuộc thi dữ liệu và ứng dụng thực tế nhờ hiệu suất vượt trội và khả năng xử lý dữ liệu lớn. Thuật toán này xây dựng một mô hình dự báo mạnh bằng cách kết hợp nhiều mô hình yếu (weak learners), thường là cây quyết định (decision trees), theo cách tuần tự để cải thiện sai số dự báo của các mô hình trước đó.
 
-XGBoost hoạt động dựa trên nguyên tắc \textit{Gradient Boosting}, trong đó mỗi cây mới được huấn luyện để dự báo sai số (residual) của các cây trước đó. Quá trình này được lặp lại cho đến khi đạt được số lượng cây tối ưu hoặc khi không còn cải thiện đáng kể về độ chính xác. Điểm khác biệt chính của XGBoost so với các thuật toán Gradient Boosting truyền thống là việc sử dụng \textit{Regularization} để kiểm soát độ phức tạp của mô hình, giúp tránh overfitting và cải thiện khả năng tổng quát hóa.
-
-Công thức tối ưu hóa của XGBoost được biểu diễn như sau:
-
-\begin{equation}
-\mathcal{L}(\phi) = \sum_i l(\hat{y}_i, y_i) + \sum_k \Omega(f_k)
-\end{equation}
-
-Trong đó: \texttt{l} là hàm loss (ví dụ: MSE cho bài toán hồi quy); \texttt{$\hat{y}_i$} là giá trị dự báo; \texttt{y\_i} là giá trị thực tế; \texttt{$\Omega(f_k)$} là hàm regularization cho cây thứ \texttt{k}; và \texttt{$\phi$} là tham số của mô hình.
-
-Hàm regularization trong XGBoost bao gồm hai thành phần chính:
-
-\begin{equation}
-\Omega(f) = \gamma T + \frac{1}{2}\lambda ||w||^2
-\end{equation}
-
-Trong đó: \texttt{T} là số lượng lá trong cây; \texttt{$\gamma$} là tham số điều chỉnh số lá (giảm overfitting); \texttt{w} là giá trị tại các lá; và \texttt{$\lambda$} là tham số điều chỉnh độ lớn của các giá trị lá (L2 regularization).
-
-XGBoost đặc biệt phù hợp cho bài toán dự báo lưu lượng truy cập web vì: (1) khả năng nắm bắt các mẫu hình phi tuyến tính phức tạp trong dữ liệu traffic; (2) khả năng xử lý các đặc trưng đa biến (multivariate features) như lag features, rolling statistics, và time-based features; (3) khả năng tự động xác định mức độ quan trọng của từng đặc trưng (feature importance), giúp hiểu rõ các yếu tố ảnh hưởng đến lưu lượng; (4) tốc độ huấn luyện nhanh và hiệu quả nhờ các tối ưu hóa về tính toán như parallel tree construction và cache-aware access patterns; (5) khả năng xử lý missing values mà không cần xử lý đặc biệt; và (6) khả năng tránh overfitting nhờ cơ chế regularization mạnh mẽ.
-
 \section{Phương pháp huấn luyện}
 
 \subsection{Chuẩn bị dữ liệu}
 
-Trước khi huấn luyện mô hình XGBoost, chúng tôi thực hiện các bước chuẩn bị dữ liệu quan trọng để đảm bảo mô hình hoạt động hiệu quả. Đầu tiên, chúng tôi lựa chọn các đặc trưng quan trọng cho mô hình dựa trên kiến thức về bài toán chuỗi thời gian và kết quả từ EDA. Các đặc trưng được chọn bao gồm: \textbf{req\_lag\_1} là giá trị request tại thời điểm \texttt{t-1} (5 phút trước), giúp capture các mẫu hình ngắn hạn; \textbf{req\_lag\_12} là giá trị request tại thời điểm \texttt{t-12} (1 giờ trước), giúp capture chu kỳ hàng ngày của traffic; \textbf{req\_lag\_288} là giá trị request tại thời điểm \texttt{t-288} (24 giờ trước), giúp capture chu kỳ hàng tuần của traffic; \textbf{rolling\_mean\_1h} là trung bình động trong 1 giờ, phản ánh xu hướng ngắn hạn; \textbf{rolling\_std\_1h} là độ lệch chuẩn động trong 1 giờ, phản ánh độ biến động ngắn hạn; \textbf{err\_lag\_1} là error rate tại thời điểm \texttt{t-1}, giúp capture các vấn đề về chất lượng hệ thống; \textbf{err\_rolling\_mean\_1h} là trung bình error rate trong 1 giờ, phản ánh xu hướng về chất lượng hệ thống; \textbf{hour\_sin} và \textbf{hour\_cos} là biểu diễn cyclic của giờ trong ngày, giúp mô hình hiểu được tính chu kỳ của thời gian; và \textbf{day\_of\_week} là thứ trong tuần, giúp capture chu kỳ hàng tuần.
-
-Tiếp theo, chúng tôi thực hiện \textbf{Data Split} theo trình tự thời gian để đảm bảo tính công bằng khi đánh giá mô hình. Dữ liệu được chia thành ba tập: \textbf{Training set} từ 02/07/1995 đến 16/08/1995 với 13,248 quan sát (khoảng 75\% dữ liệu); \textbf{Validation set} từ 17/08/1995 đến 22/08/1995 với 1,728 quan sát (khoảng 10\% dữ liệu); và \textbf{Test set} từ 23/08/1995 đến 31/08/1995 với 2,592 quan sát (khoảng 15\% dữ liệu). Việc chia dữ liệu theo trình tự thời gian này đảm bảo mô hình được huấn luyện trên quá khứ và dự báo cho tương lai, giả lập đúng cách mà các hệ thống dự báo hoạt động trong thực tế.
-
-Khác với LSTM, XGBoost không yêu cầu normalization vì thuật toán này hoạt động dựa trên việc chia nhỏ không gian đặc trưng bằng các cây quyết định, không nhạy cảm với độ lớn của các đặc trưng. Điều này giúp giảm thiểu các bước xử lý dữ liệu và tránh các vấn đề về scaling.
-
-\subsection{Cấu hình mô hình}
+Quá trình chuẩn bị dữ liệu cho mô hình XGBoost bắt đầu bằng việc lựa chọn đặc trưng dựa trên phân tích EDA và kiến thức miền, tập trung vào các nhóm biến cốt lõi: nhóm độ trễ (\texttt{req\_lag\_1}, \texttt{req\_lag\_12}, \texttt{req\_lag\_288}) nhằm nắm bắt tính chu kỳ từ ngắn hạn đến dài hạn; nhóm thống kê trượt (\texttt{rolling\_mean\_1h}, \texttt{rolling\_std\_1h}) để phản ánh xu hướng và độ biến động; nhóm chỉ số lỗi (\texttt{err\_lag\_1}, \texttt{err\_rolling\_mean\_1h}); cùng các biến thời gian tuần hoàn (\texttt{hour\_sin}, \texttt{hour\_cos}, \texttt{day\_of\_week}). Dữ liệu sau đó được phân chia nghiêm ngặt theo trình tự thời gian thành ba tập: \textbf{Training} (02/07--16/08, $\sim$75\%), \textbf{Validation} (17/08--22/08, $\sim$10\%) và \textbf{Test} (23/08--31/08, $\sim$15\%) để mô phỏng chính xác kịch bản dự báo thực tế. Đáng chú ý, khác với LSTM, XGBoost hoạt động dựa trên thuật toán cây quyết định nên không yêu cầu bước chuẩn hóa dữ liệu (normalization), giúp đơn giản hóa quy trình xử lý mà vẫn đảm bảo hiệu quả tính toán.\subsection{Cấu hình mô hình}
 
 Mô hình XGBoost được cấu hình với các siêu tham số sau: \textbf{n\_estimators = 300} là số lượng cây quyết định trong ensemble; \textbf{max\_depth = 6} là độ sâu tối đa của mỗi cây, giúp cân bằng giữa khả năng nắm bắt mẫu hình và tránh overfitting; \textbf{learning\_rate = 0.1} là tốc độ học, điều chỉnh mức độ đóng góp của mỗi cây mới; \textbf{subsample = 0.8} là tỷ lệ mẫu dữ liệu được sử dụng cho mỗi cây (stochastic gradient boosting), giúp giảm overfitting; \textbf{colsample\_bytree = 0.8} là tỷ lệ đặc trưng được sử dụng cho mỗi cây, giúp tăng tính đa dạng của các cây; \textbf{random\_state = 42} để đảm bảo tính tái tạo của kết quả; và \textbf{early\_stopping\_rounds = 50} để dừng huấn luyện khi validation loss không cải thiện trong 50 vòng lặp liên tiếp.
 
@@ -71,9 +45,7 @@ Sau khi huấn luyện xong mô hình XGBoost tối ưu, chúng tôi đánh giá
 
 \subsection{Cấu trúc mô hình}
 
-Mô hình XGBoost tối ưu cho cửa sổ 5 phút có kiến trúc như sau: \textbf{123 trees} được huấn luyện với early stopping; \textbf{10 features} đầu vào bao gồm các lag features, rolling statistics, và time-based features; và \textbf{max\_depth = 6} cho mỗi cây, cho phép mô hình nắm bắt các mẫu hình tương đối phức tạp mà không quá sâu.
-
-Kiến trúc này cho thấy dữ liệu 5 phút đã được làm mượt mà hơn nhờ quá trình aggregation, giúp mô hình XGBoost không cần quá nhiều cây để nắm bắt các mẫu hình trong dữ liệu.
+Mô hình XGBoost tối ưu cho cửa sổ 5 phút có kiến trúc: \textbf{123 trees} với early stopping, \textbf{10 features} (lag, rolling statistics, time-based), và \textbf{max\_depth = 6}. Dữ liệu 5 phút đã được làm mượt mà nhờ aggregation, giúp mô hình không cần quá nhiều cây để nắm bắt các mẫu hình.
 
 \subsection{Hiệu quả dự báo}
 
@@ -99,27 +71,6 @@ Bảng \ref{tab:xgboost_performance_5m} tóm tắt hiệu quả dự báo của 
 Một trong những ưu điểm lớn của XGBoost là khả năng xác định mức độ quan trọng của từng đặc trưng (feature importance), giúp hiểu rõ các yếu tố ảnh hưởng đến lưu lượng truy cập. Kết quả phân tích feature importance cho thấy các đặc trưng quan trọng nhất là: \textbf{req\_lag\_1} là đặc trưng quan trọng nhất, cho thấy giá trị request tại thời điểm trước đó có ảnh hưởng lớn nhất đến dự báo; \textbf{rolling\_mean\_1h} đứng thứ hai, phản ánh xu hướng ngắn hạn của traffic; \textbf{req\_lag\_12} đứng thứ ba, cho thấy chu kỳ hàng ngày của traffic; và \textbf{hour\_cos} và \textbf{hour\_sin} cũng có mức độ quan trọng cao, phản ánh tính chu kỳ của thời gian trong ngày.
 
 Kết quả này cho thấy mô hình XGBoost đã học được các mẫu hình quan trọng trong dữ liệu traffic, đặc biệt là tính autoregressive (phụ thuộc vào quá khứ gần) và chu kỳ hàng ngày.
-
-\subsection{So sánh với ARIMA và LSTM}
-
-Để đánh giá vị trí của XGBoost so với các mô hình khác, chúng tôi so sánh hiệu quả dự báo của ba mô hình trên cùng tập kiểm tra (cửa sổ 5 phút). Kết quả so sánh được tóm tắt trong Bảng \ref{tab:xgboost_vs_others}.
-
-\begin{table}[H]
-    \centering
-    \caption{So sánh hiệu quả dự báo giữa XGBoost, LSTM và ARIMA cho cửa sổ 5 phút}
-    \label{tab:xgboost_vs_others}
-    \begin{tabular}{lcccc}
-        \toprule
-        Mô hình & RMSE & MAE & MAPE (\%) & Cải thiện RMSE (\%) \\
-        \midrule
-        ARIMA & 121.86 & 99.20 & 86.26 & - \\
-        LSTM & 44.59 & 33.86 & 26.91 & +63.4 \\
-        XGBoost & 41.94 & 31.92 & 26.48 & +65.6 \\
-        \bottomrule
-    \end{tabular}
-\end{table}
-
-Kết quả cho thấy XGBoost đạt hiệu quả tương đương với LSTM và vượt trội hơn ARIMA trên tất cả các chỉ số đánh giá: \textbf{RMSE} của XGBoost là 41.94, thấp hơn ARIMA 65.6\% và thấp hơn LSTM 5.9\%; \textbf{MAE} của XGBoost là 31.92, thấp hơn ARIMA 67.8\% và thấp hơn LSTM 5.7\%; và \textbf{MAPE} của XGBoost là 26.48\%, thấp hơn ARIMA 69.3\% và thấp hơn LSTM 1.6\%. Điều này cho thấy XGBoost có khả năng nắm bắt các mẫu hình phi tuyến tính trong dữ liệu traffic tốt hơn ARIMA và đạt hiệu quả tương đương với LSTM.
 
 \section{Phân tích và đánh giá}
 
@@ -162,18 +113,6 @@ Tuy nhiên, mô hình vẫn có một số hạn chế. Đầu tiên, dự báo 
 
 XGBoost cải thiện 65.6\% về RMSE so với ARIMA và cải thiện khoảng 70\% so với các baseline đơn giản. Điều này cho thấy XGBoost có giá trị gia tăng thực sự trong việc dự báo lưu lượng truy cập web, đặc biệt là khả năng nắm bắt các mẫu hình phi tuyến tính và đa đặc trưng mà các mô hình thống kê truyền thống không thể làm được.
 
-\subsection{Ưu điểm và hạn chế}
-
-Mô hình XGBoost có nhiều ưu điểm so với ARIMA và LSTM. Đầu tiên, XGBoost có khả năng nắm bắt các mẫu hình phi tuyến tính phức tạp trong dữ liệu, đặc biệt là các mẫu hình đa đặc trưng. Thứ hai, XGBoost có khả năng tự động xác định mức độ quan trọng của từng đặc trưng (feature importance), giúp hiểu rõ các yếu tố ảnh hưởng đến lưu lượng. Thứ ba, XGBoost không yêu cầu normalization, giúp giảm thiểu các bước xử lý dữ liệu. Thứ tư, XGBoost có khả năng xử lý missing values mà không cần xử lý đặc biệt. Thứ năm, XGBoost có tốc độ huấn luyện nhanh và hiệu quả nhờ các tối ưu hóa về tính toán. Cuối cùng, XGBoost đạt được hiệu quả dự báo tốt hơn nhiều so với ARIMA và tương đương với LSTM, cải thiện 65.6\% về RMSE so với ARIMA.
-
-Tuy nhiên, XGBoost cũng có một số hạn chế. Đầu tiên, mô hình XGBoost khó giải thích hơn ARIMA, đặc biệt là các cây quyết định sâu không có ý nghĩa trực quan như các tham số trong ARIMA. Thứ hai, XGBoost nhạy cảm với việc lựa chọn siêu tham số, đòi hỏi quá trình hyperparameter tuning kỹ lưỡng. Thứ ba, XGBoost có thể overfitting nếu không sử dụng regularization hoặc early stopping phù hợp. Cuối cùng, XGBoost không tự động nắm bắt các mẫu hình tuần tự (sequential patterns) như LSTM, nên cần tạo các lag features và rolling statistics thủ công.
-
 \subsection{Kết luận}
 
 Mô hình XGBoost đã chứng minh được hiệu quả vượt trội so với ARIMA và tương đương với LSTM trong bài toán dự báo lưu lượng truy cập web. Với RMSE = 41.94, MAE = 31.92, và MAPE = 26.48\%, XGBoost cải thiện đáng kể về độ chính xác dự báo so với ARIMA (RMSE = 121.86, MAE = 99.20, MAPE = 86.26\%) và đạt hiệu quả tương đương với LSTM (RMSE = 44.59, MAE = 33.86, MAPE = 26.91\%). Điều này cho thấy XGBoost có khả năng nắm bắt các mẫu hình phi tuyến tính và đa đặc trưng trong dữ liệu traffic tốt hơn nhiều so với các mô hình thống kê truyền thống.
-
-Kiến trúc tối ưu cho XGBoost là \texttt{n\_estimators = 123} (sau early stopping), \texttt{max\_depth = 6}, \texttt{learning\_rate = 0.1}, \texttt{subsample = 0.8}, và \texttt{colsample\_bytree = 0.8}. Quá trình huấn luyện sử dụng Early Stopping với patience = 50, dừng tại vòng lặp thứ 123 với best validation RMSE = 40.69.
-
-Các đặc trưng quan trọng nhất theo XGBoost là \textbf{req\_lag\_1}, \textbf{rolling\_mean\_1h}, \textbf{req\_lag\_12}, \textbf{hour\_cos}, và \textbf{hour\_sin}, cho thấy mô hình đã học được các mẫu hình quan trọng trong dữ liệu traffic, đặc biệt là tính autoregressive và chu kỳ hàng ngày.
-
-Mặc dù có một số hạn chế về độ giải thích và nhạy cảm với siêu tham số, XGBoost vẫn là lựa chọn tốt hơn ARIMA và tương đương với LSTM cho bài toán dự báo lưu lượng truy cập web, đặc biệt khi cần độ chính xác cao, tốc độ huấn luyện nhanh và khả năng xử lý nhiều đặc trưng. Trong các chương tiếp theo, chúng tôi sẽ so sánh chi tiết XGBoost với các mô hình khác để xác định mô hình tối ưu nhất cho từng cửa sổ thời gian.

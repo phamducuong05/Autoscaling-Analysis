@@ -2,17 +2,16 @@
 
 \section{Tổng quan bộ dữ liệu NASA HTTP Logs}
 
-Bộ dữ liệu được sử dụng trong dự án là \textbf{NASA WWW Server Logs}, một tập dữ liệu kinh điển trong lĩnh vực phân tích lưu lượng mạng và chuỗi thời gian. Dữ liệu này ghi lại toàn bộ các request HTTP đến máy chủ WWW của NASA trong khoảng thời gian hai tháng, từ ngày 1/7/1995 đến ngày 31/8/1995, với độ phân giải thời gian là 1 giây. Tổng số lượng request trong bộ dữ liệu là khoảng 3.46 triệu dòng log, cung cấp một bức tranh toàn diện về mẫu hình truy cập web vào giữa thập niên 1990.
+Bộ dữ liệu \textbf{NASA WWW Server Logs} ghi lại các request HTTP đến máy chủ WWW của NASA từ 1/7/1995 đến 31/8/1995 với độ phân giải 1 giây. Tổng số lượng request là khoảng 3.46 triệu dòng log.
 
-Mỗi dòng log trong bộ dữ liệu NASA được lưu trữ theo định dạng ASCII chuẩn, chứa các trường thông tin quan trọng cho việc phân tích chuỗi thời gian và autoscaling. Các trường này bao gồm: \textbf{Host} là địa chỉ IP hoặc tên miền của máy khách gửi request; \textbf{Timestamp} là thời điểm request được thực hiện với định dạng \texttt{[dd/Mon/YYYY:HH:MM:SS -0400]}; \textbf{Request} là chuỗi request HTTP bao gồm phương thức (GET, POST, v.v.), đường dẫn URL và phiên bản giao thức; \textbf{Status Code} là mã phản hồi HTTP (ví dụ: 200 cho thành công, 404 cho not found, 500 cho lỗi server); và \textbf{Bytes} là số byte dữ liệu được trả về cho request.
+Mỗi dòng log chứa các trường: \textbf{Host} (địa chỉ IP/tên miền client), \textbf{Timestamp} (thời gian request, format \texttt{[dd/Mon/YYYY:HH:MM:SS -0400]}), \textbf{Request} (phương thức HTTP, URL, phiên bản), \textbf{Status Code} (mã phản hồi HTTP), và \textbf{Bytes} (số byte trả về).
 
-Ví dụ một dòng log điển hình có dạng sau:
+Ví dụ log:
 \begin{verbatim}
 199.72.81.55 - - [01/Jul/1995:00:00:01 -0400] "GET /history/apollo/ HTTP/1.0" 200 6245
 \end{verbatim}
-Trong ví dụ này, \texttt{199.72.81.55} là địa chỉ IP của client, \texttt{[01/Jul/1995:00:00:01 -0400]} là thời gian request với timezone UTC-4 (Eastern Time), \texttt{"GET /history/apollo/ HTTP/1.0"} là request HTTP GET đến đường dẫn \texttt{/history/apollo/}, \texttt{200} là mã trạng thái HTTP 200 (Success), và \texttt{6245} là số byte dữ liệu được trả về.
 
-Một điểm quan trọng cần lưu ý về bộ dữ liệu này là sự tồn tại của các khoảng thời gian \textit{system downtime} do bão. Theo tài liệu chính thức của NASA, máy chủ đã gặp sự cố từ ngày 01/08/1995 14:52:01 đến ngày 03/08/1995 04:36:13 do ảnh hưởng của bão. Tuy nhiên, thay vì để lại các khoảng trống trong dữ liệu, các khoảng thời gian này đã được điền bằng dữ liệu giả lập (mock data) để duy trì tính liên tục của chuỗi thời gian. Ngoài ra, dự án cũng phát hiện thêm một khoảng thời gian có dấu hiệu bất thường từ ngày 28/07/1995 13:32:26 đến ngày 01/08/1995 00:00:00, trong đó số lượng request giảm đáng kể so với bình thường. Để đảm bảo chất lượng dữ liệu cho việc huấn luyện mô hình, các khoảng thời gian này được đánh dấu bằng cột \texttt{is\_system\_down} và các giá trị request được khôi phục bằng cách sử dụng dữ liệu từ tuần trước (shift 7 ngày).
+Bộ dữ liệu có các khoảng \textit{system downtime} do bão (01/08-03/08/1995) và một khoảng bất thường (28/07-01/08/1995). Các khoảng này được đánh dấu bằng cột \texttt{is\_system\_down} và khôi phục bằng dữ liệu từ tuần trước (shift 7 ngày).
 
 \section{Cấu trúc dữ liệu và Pipeline xử lý}
 
@@ -23,15 +22,13 @@ Pipeline xử lý dữ liệu bắt đầu bằng việc đọc và parse các f
 (?P<host>\S+) - - \[(?P<timestamp>.*?)\] "(?P<request>.*?)" (?P<status>\d{3}) (?P<bytes>\S+)
 \end{verbatim}
 
-Hàm \texttt{parse\_log\_line} chịu trách nhiệm chuyển đổi mỗi dòng log thành một dictionary với các trường đã được trích xuất. Trong quá trình này, chúng tôi thực hiện các bước xử lý sau. Đầu tiên, trích xuất \textbf{Host} bằng cách lấy địa chỉ IP hoặc tên miền của client. Tiếp theo, parse \textbf{Timestamp} và chuyển đổi chuỗi timestamp sang định dạng datetime với timezone UTC-4 để đảm bảo tính chính xác về thời gian. Sau đó, trích xuất \textbf{Request} để lấy chuỗi request HTTP đầy đủ bao gồm phương thức, đường dẫn và phiên bản giao thức. Tiếp theo, parse \textbf{Status Code} và chuyển đổi mã trạng thái sang dạng integer để dễ dàng xử lý. Cuối cùng, parse \textbf{Bytes} và chuyển đổi số byte sang dạng integer, xử lý trường hợp giá trị là \texttt{'-'} (không có dữ liệu trả về) bằng cách gán giá trị 0.
-
 Sau khi parse tất cả các dòng log, dữ liệu được chuyển đổi thành \textbf{pandas DataFrame} và sắp xếp theo thứ tự thời gian để đảm bảo tính liên tục của chuỗi thời gian. Điều này rất quan trọng vì các mô hình chuỗi thời gian yêu cầu dữ liệu được sắp xếp theo trình tự thời gian để học được các mẫu hình phụ thuộc vào quá khứ.
 
 \subsection{Aggregation theo thời gian}
 
-Do dữ liệu gốc có độ phân giải là 1 giây, chúng tôi thực hiện aggregation theo các cửa sổ thời gian khác nhau để phù hợp với các mục đích phân tích và mô hình hóa. Ba cửa sổ thời gian được sử dụng trong dự án là: cửa sổ \textbf{1-minute (1m)} với 89,280 điểm dữ liệu, phù hợp cho việc phản ứng nhanh với các biến động tức thời; cửa sổ \textbf{5-minute (5m)} với 17,856 điểm dữ liệu, cân bằng tốt giữa độ nhạy và độ ổn định; và cửa sổ \textbf{15-minute (15m)} với 5,952 điểm dữ liệu, phù hợp cho các chiến lược dài hạn và giảm nhiễu.
+Dữ liệu gốc có độ phân giải 1 giây nên được aggregation theo 3 cửa sổ thời gian: \textbf{1-minute (1m)} với 89,280 điểm (phù hợp phản ứng nhanh), \textbf{5-minute (5m)} với 17,856 điểm (cân bằng giữa độ nhạy và ổn định), và \textbf{15-minute (15m)} với 5,952 điểm (chiến lược dài hạn, giảm nhiễu).
 
-Hàm \texttt{resample\_traffic} thực hiện aggregation với các bước sau. Đầu tiên, thiết lập cột \texttt{timestamp} làm index của DataFrame. Tiếp theo, sử dụng phương thức \texttt{resample} của pandas với các cửa sổ thời gian \texttt{'1min'}, \texttt{'5min'}, và \texttt{'15min'}. Sau đó, áp dụng các hàm aggregation cho từng trường: \texttt{requests} sử dụng \texttt{count} để đếm số lượng request trong mỗi cửa sổ; \texttt{bytes} sử dụng \texttt{sum} để tổng số byte được chuyển tải; \texttt{hosts} sử dụng \texttt{nunique} để đếm số lượng host duy nhất (đại diện cho số lượng người dùng); và \texttt{errors} sử dụng \texttt{lambda x: (x >= 400).sum()} để đếm số lượng lỗi (status code $\ge$ 400). Cuối cùng, \textbf{Fill missing values} bằng cách điền 0 cho các khoảng thời gian không có request để đảm bảo tính liên tục của chuỗi thời gian.
+Hàm \texttt{resample\_traffic} sử dụng \texttt{resample} của pandas với các cửa sổ \texttt{'1min'}, \texttt{'5min'}, \texttt{'15min'}. Các hàm aggregation: \texttt{requests} dùng \texttt{count}, \texttt{bytes} dùng \texttt{sum}, \texttt{hosts} dùng \texttt{nunique}, \texttt{errors} dùng \texttt{lambda x: (x >= 400).sum()}. Missing values được điền bằng 0.
 
 \subsection{Xử lý missing values và anomalies}
 
@@ -112,15 +109,3 @@ Biểu đồ so sánh traffic giữa 3 khung thời gian (Hình \ref{fig:window_
 \subsection{Rolling Statistics}
 
 Để nắm bắt xu hướng và độ biến động của traffic, chúng tôi tính toán các thống kê rolling. \textbf{rolling\_mean\_1h} là trung bình động trong 1 giờ (12 bước cho khung 5m), phản ánh xu hướng ngắn hạn của traffic. \textbf{rolling\_std\_1h} là độ lệch chuẩn động trong 1 giờ, phản ánh độ biến động ngắn hạn của traffic. \textbf{rolling\_mean\_24h} là trung bình động trong 24 giờ (288 bước cho khung 5m), phản ánh xu hướng dài hạn của traffic. Các đặc trưng này giúp mô hình nhận diện các giai đoạn tăng trưởng, giảm sút và ổn định của traffic.
-
-\section{Aggregation và Train/Test Split}
-
-\subsection{Train/Test Split theo trình tự thời gian}
-
-Đối với bài toán chuỗi thời gian, việc split dữ liệu phải tuân thủ nguyên tắc \textit{chronological split} - không được random shuffle vì sẽ làm mất tính liên tục của thời gian. Chúng tôi thực hiện split như sau: \textbf{Training set} từ 01/07/1995 đến 22/08/1995 (khoảng 52 ngày), chiếm khoảng 85\% dữ liệu. \textbf{Test set} từ 23/08/1995 đến 31/08/1995 (khoảng 9 ngày), chiếm khoảng 15\% dữ liệu. Tỷ lệ train/test là khoảng 85\%/15\%, phù hợp cho việc đánh giá khả năng dự báo của mô hình.
-
-Việc split theo trình tự thời gian có những ưu điểm quan trọng. Đầu tiên, \textbf{Giả lập thực tế}: Mô hình được huấn luyện trên quá khứ và dự báo cho tương lai, giả lập đúng cách mà các hệ thống dự báo hoạt động trong thực tế. Thứ hai, \textbf{Tránh data leakage}: Không có thông tin từ tương lai "rò rỉ" vào tập training, đảm bảo tính công bằng của đánh giá mô hình. Tuy nhiên, việc split theo trình tự thời gian cũng có nhược điểm. Nếu mẫu hình traffic thay đổi đáng kể giữa train và test (concept drift), mô hình có thể hoạt động kém. Ngoài ra, nếu test set chứa các sự kiện đặc biệt không có trong train set, dự báo sẽ kém chính xác.
-
-\subsection{Lưu trữ dữ liệu}
-
-Sau khi xử lý hoàn tất, 3 bộ dữ liệu được lưu trữ trong thư mục \texttt{data/cleaned/} để sử dụng cho việc huấn luyện và đánh giá các mô hình. \texttt{data\_1m.csv} là dữ liệu aggregation theo 1 phút với 89,280 điểm dữ liệu. \texttt{data\_5m.csv} là dữ liệu aggregation theo 5 phút với 17,856 điểm dữ liệu. \texttt{data\_15m.csv} là dữ liệu aggregation theo 15 phút với 5,952 điểm dữ liệu. Các file này được sử dụng trực tiếp cho việc huấn luyện và đánh giá các mô hình trong các chương tiếp theo.

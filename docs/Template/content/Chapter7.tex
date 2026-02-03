@@ -6,16 +6,6 @@
 
 Trong bài toán autoscaling, việc lựa chọn chiến lược phù hợp đóng vai trò quan trọng trong việc cân bằng giữa chi phí vận hành và chất lượng dịch vụ. Chúng tôi triển khai ba chiến lược scaling khác nhau để so sánh hiệu quả: \textbf{CPU-based scaling} (scaling phản ứng dựa trên tải CPU), \textbf{Request-based scaling} (scaling dựa trên số lượng request thực tế), và \textbf{Predictive scaling} (scaling dự báo sử dụng kết quả từ mô hình học máy).
 
-\textbf{CPU-based scaling} là chiến lược phản ứng (reactive) đơn giản nhất, trong đó hệ thống điều chỉnh số lượng máy chủ dựa trên tải CPU hiện tại. Khi tải CPU vượt quá ngưỡng 70\% trong 5 phút liên tiếp, hệ thống sẽ kích hoạt scale-out (tăng số lượng máy chủ). Ngược lại, khi tải CPU giảm dưới 30\% trong 10 phút liên tiếp, hệ thống sẽ kích hoạt scale-in (giảm số lượng máy chủ). Chiến lược này có ưu điểm là đơn giản và dễ triển khai, nhưng có nhược điểm là chỉ phản ứng sau khi tải đã tăng, dẫn đến độ trễ trong việc đáp ứng traffic đột ngột.
-
-\textbf{Request-based scaling} là chiến lược phản ứng khác, trong đó hệ thống tính toán server capacity và điều chỉnh số lượng máy chủ dựa trên số lượng request thực tế. Chúng tôi giả định mỗi máy chủ có thể xử lý khoảng 1000 request mỗi phút. Khi số lượng request dự báo vượt quá capacity của số lượng máy chủ hiện tại, hệ thống sẽ kích hoạt scale-out. Ngược lại, khi số lượng request giảm xuống dưới một ngưỡng an toàn, hệ thống sẽ kích hoạt scale-in. Công thức tính toán số lượng máy chủ tối ưu được biểu diễn như sau:
-
-\begin{equation}
-\text{optimal\_servers} = \lceil \frac{\text{forecast\_requests}}{\text{server\_capacity}} \rceil
-\end{equation}
-
-Trong đó: \texttt{forecast\_requests} là số lượng request dự báo cho thời điểm tiếp theo; \texttt{server\_capacity} là số lượng request tối đa mà một máy chủ có thể xử lý mỗi phút (giả định là 1000); và \texttt{$\lceil x \rceil$} là hàm làm tròn lên.
-
 \textbf{Predictive scaling} là chiến lược tiên tiến nhất, trong đó hệ thống sử dụng kết quả dự báo từ mô hình học máy (XGBoost) để chủ động điều chỉnh tài nguyên trước khi traffic thực tế tăng. Khi mô hình dự báo traffic sẽ tăng hơn 20\% trong 15 phút tới, hệ thống sẽ kích hoạt scale-out trước để đảm bảo đủ tài nguyên khi traffic tăng. Ngược lại, khi mô hình dự báo traffic sẽ giảm đáng kể, hệ thống sẽ kích hoạt scale-in để tiết kiệm chi phí. Chiến lược này có ưu điểm là chủ động và giảm độ trễ phản ứng, nhưng phụ thuộc vào độ chính xác của mô hình dự báo.
 
 Bảng \ref{tab:scaling_strategies} tóm tắt các chiến lược scaling được triển khai.
@@ -85,18 +75,6 @@ Kết quả cho thấy chiến lược \textbf{Predictive scaling} đạt hiệu
 
 Hệ thống autoscaling được thiết kế theo kiến trúc phân tầng với các thành phần chính: \textbf{Data Layer}, \textbf{Processing Layer}, \textbf{Model Layer}, \textbf{API Layer}, và \textbf{Dashboard Layer}. Kiến trúc này đảm bảo tính mô-đun, dễ mở rộng và dễ bảo trì.
 
-\textbf{Data Layer} chịu trách nhiệm lưu trữ và quản lý dữ liệu thô và dữ liệu đã được xử lý. Dữ liệu thô từ NASA HTTP logs được lưu trong thư mục \texttt{data/raw/}, trong khi dữ liệu đã được xử lý và aggregated được lưu trong thư mục \texttt{data/cleaned/}. Các mô hình đã được huấn luyện được lưu trong thư mục \texttt{models/} để sử dụng cho dự báo.
-
-\textbf{Processing Layer} chịu trách nhiệm xử lý dữ liệu và tạo các đặc trưng cho mô hình. Các module trong lớp này bao gồm \texttt{data\_loader.py} (đọc và parse logs), \texttt{features.py} (tạo đặc trưng), và \texttt{evaluation.py} (tính toán các chỉ số đánh giá). Lớp này đảm bảo dữ liệu được chuẩn hóa và làm sạch trước khi đưa vào mô hình.
-
-\textbf{Model Layer} chứa các mô hình học máy đã được huấn luyện và logic dự báo. Các mô hình ARIMA, LSTM, và XGBoost được tải từ thư mục \texttt{models/} và sử dụng để dự báo số lượng request trong tương lai. Lớp này cũng chứa logic autoscaling trong \texttt{optimization.py}, bao gồm các chiến lược scaling và cơ chế cooldown.
-
-\textbf{API Layer} là giao diện giữa hệ thống và người dùng, cung cấp các endpoint để nhận request và trả về kết quả. API được xây dựng bằng FastAPI và cung cấp hai endpoint chính: \texttt{/forecast} để lấy dự báo lưu lượng truy cập và \texttt{/recommend-scaling} để lấy đề xuất số lượng máy chủ tối ưu.
-
-\textbf{Dashboard Layer} là giao diện người dùng trực quan để hiển thị kết quả dự báo và các đề xuất autoscaling. Dashboard được xây dựng bằng Streamlit và cung cấp các biểu đồ tương tác để người dùng có thể khám phá dữ liệu và kết quả dự báo.
-
-Kiến trúc hệ thống được thiết kế theo kiến trúc phân tầng với các thành phần chính: \textbf{Data Layer}, \textbf{Processing Layer}, \textbf{Model Layer}, \textbf{API Layer}, và \textbf{Dashboard Layer}. Kiến trúc này đảm bảo tính mô-đun, dễ mở rộng và dễ bảo trì.
-
 \subsection{API Endpoints}
 
 API của hệ thống autoscaling được xây dựng bằng FastAPI và cung cấp hai endpoint chính để phục vụ các nhu cầu khác nhau của người dùng. Endpoint \texttt{/forecast} cho phép người dùng lấy dự báo lưu lượng truy cập, trong khi endpoint \texttt{/recommend-scaling} cho phép người dùng lấy đề xuất số lượng máy chủ tối ưu.
@@ -155,15 +133,5 @@ API được thiết kế để dễ tích hợp với các hệ thống khác v
 \subsection{Dashboard}
 
 Dashboard của hệ thống autoscaling được xây dựng bằng Streamlit và cung cấp giao diện người dùng trực quan để hiển thị kết quả dự báo và các đề xuất autoscaling. Dashboard cho phép người dùng khám phá dữ liệu, so sánh các mô hình khác nhau, và hiểu rõ cách hệ thống autoscaling hoạt động.
-
-Dashboard bao gồm các thành phần chính sau. \textbf{Traffic Visualization} là biểu đồ hiển thị traffic theo thời gian, cho phép người dùng chọn khung thời gian (1m, 5m, hoặc 15m) và zoom vào các khoảng thời gian cụ thể. Biểu đồ hiển thị cả giá trị thực tế và giá trị dự báo, giúp người dùng dễ dàng so sánh.
-
-\textbf{Forecast Display} là biểu đồ hiển thị dự báo từ mô hình đã chọn với confidence intervals. Người dùng có thể chọn mô hình (ARIMA, LSTM, hoặc XGBoost) và thời gian dự báo (số bước thời gian trong tương lai). Confidence intervals được hiển thị dưới dạng vùng màu xám quanh đường dự báo, cho thấy mức độ không chắc chắn của dự báo.
-
-\textbf{Scaling Recommendations} là bảng hiển thị các đề xuất autoscaling dựa trên chiến lược đã chọn. Người dùng có thể chọn chiến lược (CPU-based, Request-based, hoặc Predictive) và xem số lượng máy chủ tối ưu, hành động cần thực hiện (scale-out, scale-in, hoặc no-action), và ước tính chi phí. Bảng cũng hiển thị timeline của các scaling events, cho phép người dùng hiểu rõ khi nào hệ thống scale-out hoặc scale-in.
-
-\textbf{Model Comparison} là biểu đồ so sánh hiệu quả của các mô hình khác nhau trên các chỉ số RMSE, MAE, và MAPE. Người dùng có thể chọn khung thời gian (1m, 5m, hoặc 15m) và xem mô hình nào đạt hiệu quả tốt nhất cho khung thời gian đó.
-
-Dashboard được thiết kế để dễ sử dụng và trực quan, cho phép người dùng không chuyên về kỹ thuật cũng có thể hiểu rõ cách hệ thống autoscaling hoạt động và đánh giá hiệu quả của các chiến lược khác nhau.
 
 Dashboard được thiết kế để dễ sử dụng và trực quan, cho phép người dùng không chuyên về kỹ thuật cũng có thể hiểu rõ cách hệ thống autoscaling hoạt động và đánh giá hiệu quả của các chiến lược khác nhau.

@@ -43,63 +43,7 @@ Bảng \ref{tab:improvement} tóm tắt mức cải thiện của XGBoost và LS
 
 Kết quả cho thấy cả XGBoost và LSTM đều cải thiện đáng kể về độ chính xác dự báo so với ARIMA, với mức cải thiện khoảng 63-69\% trên các chỉ số RMSE, MAE và MAPE. Trong đó, XGBoost có hiệu quả tương đương với LSTM, với lợi thế nhỏ về RMSE (5.9\% tốt hơn), MAE (5.7\% tốt hơn) và MAPE (1.6\% tốt hơn). Đặc biệt, XGBoost có tỷ lệ overfitting thấp nhất (1.11x), cho thấy khả năng tổng quát hóa tốt nhất trong ba mô hình.
 
-Bảng \ref{tab:comparison_all} đã tóm tắt kết quả so sánh hiệu quả dự báo của ba mô hình trên các chỉ số RMSE, MAE và MAPE. Dữ liệu cho thấy sự vượt trội của XGBoost và LSTM so với ARIMA, với XGBoost có hiệu quả tốt nhất trên cả ba chỉ số.
-
-\section{Phân tích chi tiết}
-
-\subsection{Tại sao XGBoost đạt hiệu quả tốt nhất}
-
-XGBoost đạt hiệu quả tốt nhất trong ba mô hình nhờ vào nhiều yếu tố ưu việt. Đầu tiên, XGBoost có khả năng nắm bắt các mẫu hình phi tuyến tính phức tạp trong dữ liệu traffic, đặc biệt là các mẫu hình đa đặc trưng như lag features, rolling statistics, và time-based features. Khác với ARIMA chỉ dựa trên giá trị quá khứ đơn giản, XGBoost có thể kết hợp nhiều đặc trưng khác nhau để tạo ra dự báo chính xác hơn.
-
-Thứ hai, XGBoost sử dụng cơ chế \textit{Gradient Boosting} với \textit{Regularization} mạnh mẽ, giúp mô hình học được các mẫu hình quan trọng trong dữ liệu mà không overfitting. Cơ chế regularization bao gồm hai thành phần: \texttt{$\gamma$} điều chỉnh số lượng lá trong cây và \texttt{$\lambda$} điều chỉnh độ lớn của các giá trị lá (L2 regularization). Điều này giúp XGBoost có tỷ lệ overfitting thấp nhất (1.11x), cho thấy khả năng tổng quát hóa tốt nhất trong ba mô hình.
-
-Thứ ba, XGBoost có khả năng tự động xác định mức độ quan trọng của từng đặc trưng (feature importance), giúp mô hình tập trung vào các đặc trưng quan trọng nhất như \texttt{req\_lag\_1}, \texttt{rolling\_mean\_1h}, \texttt{req\_lag\_12}, \texttt{hour\_cos}, và \texttt{hour\_sin}. Kết quả phân tích feature importance cho thấy mô hình đã học được các mẫu hình quan trọng trong dữ liệu traffic, đặc biệt là tính autoregressive (phụ thuộc vào quá khứ gần) và chu kỳ hàng ngày.
-
-Thứ tư, XGBoost có tốc độ huấn luyện nhanh và hiệu quả nhờ các tối ưu hóa về tính toán như \textit{parallel tree construction} và \textit{cache-aware access patterns}. Điều này giúp mô hình hội tụ nhanh chóng, chỉ cần 123 cây (trong tổng số 300 cây tối đa) để đạt hiệu quả tối ưu với validation RMSE = 40.69.
-
-Cuối cùng, XGBoost có khả năng xử lý missing values mà không cần xử lý đặc biệt, giúp giảm thiểu các bước xử lý dữ liệu và tránh các vấn đề về scaling. Điều này đặc biệt hữu ích trong bài toán dự báo lưu lượng truy cập web, nơi dữ liệu có thể có các khoảng thời gian không có request.
-
-\subsection{Tại sao LSTM xếp thứ hai}
-
-LSTM xếp thứ hai trong ba mô hình, với hiệu quả tương đương với XGBoost nhưng có một số hạn chế. LSTM có khả năng nắm bắt các mẫu hình phi tuyến tính và dài hạn trong dữ liệu traffic, đặc biệt là các chu kỳ hàng ngày và hàng tuần. Kiến trúc LSTM với 32 hidden units và 1 layer cho phép mô hình học được các mẫu hình phức tạp mà không cần quá nhiều tham số (tổng cộng 5,025 tham số).
-
-Tuy nhiên, LSTM có một số hạn chế so với XGBoost. Đầu tiên, LSTM yêu cầu chuẩn hóa dữ liệu (normalization) trước khi huấn luyện, điều này có thể dẫn đến mất mát thông tin và tăng độ phức tạp của pipeline xử lý dữ liệu. Thứ hai, LSTM nhạy cảm với việc lựa chọn siêu tham số, đòi hỏi quá trình hyperparameter tuning kỹ lưỡng. Trong quá trình hyperparameter tuning với 7 cấu hình khác nhau, chúng tôi đã thử nghiệm các biến thể của small\_model, medium\_model, large\_model, và deep\_model với các training configs khác nhau như standard, aggressive, conservative và sequence lengths khác nhau như 12, 24.
-
-Thứ ba, LSTM có tỷ lệ overfitting khoảng 1.2x, cao hơn XGBoost (1.11x) nhưng thấp hơn nhiều so với ARIMA (2.48x). Điều này cho thấy LSTM có khả năng tổng quát hóa tốt hơn ARIMA nhưng không tốt bằng XGBoost. Cơ chế Early Stopping với patience = 10 đã giúp tránh overfitting, dừng quá trình huấn luyện tại epoch 18 và tải lại trọng số từ epoch 8 với best validation loss = 0.005225.
-
-Cuối cùng, LSTM khó giải thích hơn XGBoost, đặc biệt là các trọng số trong mạng nơ-ron không có ý nghĩa trực quan như các tham số trong ARIMA hay feature importance của XGBoost. Điều này làm giảm khả năng giải thích của mô hình và khó hiểu rõ các yếu tố ảnh hưởng đến dự báo.
-
-\subsection{Tại sao ARIMA underperforms}
-
-ARIMA xếp hạng cuối trong ba mô hình với hiệu quả dự báo kém đáng kể so với XGBoost và LSTM. Có nhiều nguyên nhân dẫn đến kết quả này, nhưng nguyên nhân chính là sự thiếu hụt thành phần mùa vụ (seasonal component) trong mô hình ARIMA tiêu chuẩn.
-
-Đầu tiên, dữ liệu traffic có chu kỳ hàng ngày và hàng tuần rõ rệt, như đã phân tích trong Chương 2. Chu kỳ hàng ngày thể hiện rõ nét với traffic tăng mạnh vào các giờ làm việc (9h-17h) và giảm vào ban đêm (0h-6h), phản ánh hành vi người dùng điển hình trong ngày làm việc. Chu kỳ hàng tuần cho thấy traffic cao hơn vào các ngày trong tuần (Thứ 2 - Thứ 6) và thấp hơn vào cuối tuần (Thứ 7 - Chủ Nhật). Tuy nhiên, mô hình ARIMA tiêu chuẩn \texttt{ARIMA(2,0,1)} không có thành phần mùa vụ, không thể nắm bắt được các chu kỳ này.
-
-Thứ hai, ARIMA chỉ dựa trên giá trị quá khứ đơn giản (autoregressive) và sai số dự báo quá khứ (moving average), không thể kết hợp nhiều đặc trưng khác nhau như lag features, rolling statistics, và time-based features. Điều này làm giảm khả năng của mô hình trong việc nắm bắt các mẫu hình phức tạp trong dữ liệu traffic.
-
-Thứ ba, ARIMA có hiện tượng overfitting nghiêm trọng với tỷ lệ 2.48x, cao hơn nhiều so với XGBoost (1.11x) và LSTM ($\sim$1.2x). Điều này cho thấy mô hình ARIMA phù hợp tốt với dữ liệu huấn luyện nhưng không thể tổng quát hóa tốt trên dữ liệu mới. Kết quả kiểm tra Ljung-Box cho thấy các phần dư của ARIMA là white noise (tốt), nhưng kết quả kiểm tra Jarque-Bera cho thấy các phần dư không có phân phối chuẩn, cho thấy dữ liệu traffic có phân phối lệch (skewed) với nhiều giá trị outlier.
-
-Thứ tư, ARIMA chỉ cải thiện nhẹ 0.5\% so với baseline (mean baseline), cho thấy giá trị gia tăng của mô hình là rất hạn chế. Mô hình ARIMA gần như chỉ dự báo bằng giá trị trung bình, không thể nắm bắt được các mẫu hình quan trọng trong dữ liệu traffic.
-
-Cuối cùng, ARIMA là một mô hình thống kê truyền thống, không thể nắm bắt các mẫu hình phi tuyến tính phức tạp trong dữ liệu traffic. Trong khi XGBoost và LSTM có khả năng nắm bắt các mẫu hình phi tuyến tính, ARIMA chỉ có thể nắm bắt các mẫu hình tuyến tính đơn giản.
-
-\subsection{Phân tích trade-offs giữa các mô hình}
-
-Khi lựa chọn mô hình cho bài toán dự báo lưu lượng truy cập web, chúng tôi cần cân nhắc trade-offs giữa độ chính xác dự báo, độ phức tạp, thời gian huấn luyện, khả năng giải thích, và khả năng triển khai.
-
-Về \textbf{độ chính xác dự báo}: XGBoost đạt hiệu quả tốt nhất trên cả ba chỉ số RMSE, MAE và MAPE, tiếp theo là LSTM và cuối cùng là ARIMA. Nếu độ chính xác là ưu tiên hàng đầu, XGBoost là lựa chọn tốt nhất.
-
-Về \textbf{độ phức tạp}: ARIMA là mô hình đơn giản nhất với ít tham số nhất (chỉ có 3 tham số p, d, q), dễ hiểu và dễ giải thích. XGBoost có độ phức tạp trung bình với nhiều siêu tham số cần tuning nhưng có feature importance giúp giải thích mô hình. LSTM là mô hình phức tạp nhất với kiến trúc mạng nơ-ron sâu, khó hiểu và khó giải thích.
-
-Về \textbf{thời gian huấn luyện}: ARIMA có thời gian huấn luyện nhanh nhất, chỉ cần vài phút để huấn luyện. XGBoost có thời gian huấn luyện trung bình, khoảng vài phút đến vài chục phút tùy vào số lượng cây. LSTM có thời gian huấn luyện lâu nhất, có thể mất vài chục phút đến vài giờ tùy vào kiến trúc và số lượng epochs.
-
-Về \textbf{khả năng giải thích}: ARIMA có khả năng giải thích tốt nhất với các tham số có ý nghĩa thống kê rõ ràng. XGBoost có khả năng giải thích tốt nhờ feature importance. LSTM có khả năng giải thích kém nhất do các trọng số trong mạng nơ-ron không có ý nghĩa trực quan.
-
-Về \textbf{khả năng triển khai}: ARIMA dễ triển khai nhất với ít phụ thuộc và yêu cầu tài nguyên thấp. XGBoost cũng dễ triển khai với nhiều thư viện hỗ trợ. LSTM khó triển khai nhất do yêu cầu tài nguyên tính toán cao và cần GPU để huấn luyện hiệu quả.
-
 \section{Lựa chọn mô hình tối ưu}
-
-\subsection{Tiêu chí lựa chọn mô hình}
 
 Để lựa chọn mô hình tối ưu cho bài toán dự báo lưu lượng truy cập web, chúng tôi xác định các tiêu chí quan trọng sau: (1) \textbf{Độ chính xác dự báo}: Mô hình phải có độ chính xác cao trên các chỉ số RMSE, MAE và MAPE; (2) \textbf{Khả năng tổng quát hóa}: Mô hình phải có tỷ lệ overfitting thấp, đảm bảo hiệu quả tốt trên dữ liệu mới; (3) \textbf{Tốc độ huấn luyện}: Mô hình phải có thời gian huấn luyện hợp lý để có thể retraining thường xuyên; (4) \textbf{Khả năng giải thích}: Mô hình phải có khả năng giải thích để hiểu rõ các yếu tố ảnh hưởng đến dự báo; (5) \textbf{Khả năng triển khai}: Mô hình phải dễ triển khai trong môi trường production với yêu cầu tài nguyên hợp lý; và (6) \textbf{Độ tin cậy}: Mô hình phải hoạt động ổn định và đáng tin cậy trong thời gian dài.
 
@@ -126,35 +70,3 @@ Dựa trên các tiêu chí này, chúng tôi đánh giá ba mô hình trên tha
 \end{table}
 
 Kết quả đánh giá cho thấy XGBoost đạt tổng điểm cao nhất (4.80), vượt trội hơn đáng kể so với ARIMA (3.10) và LSTM (3.10). ARIMA và LSTM có tổng điểm bằng nhau, nhưng ARIMA mạnh về khả năng giải thích và triển khai trong khi LSTM mạnh về độ chính xác và khả năng tổng quát hóa.
-
-\subsection{Khuyến nghị cho production use}
-
-Dựa trên kết quả đánh giá, chúng tôi khuyến nghị sử dụng mô hình \textbf{XGBoost} cho production use trong bài toán dự báo lưu lượng truy cập web. XGBoost đạt hiệu quả tốt nhất trên cả ba chỉ số RMSE, MAE và MAPE, đồng thời có tỷ lệ overfitting thấp nhất (1.11x), cho thấy khả năng tổng quát hóa tốt nhất trong ba mô hình.
-
-XGBoost có nhiều ưu điểm phù hợp cho production use. Đầu tiên, XGBoost có độ chính xác cao với RMSE = 41.94, MAE = 31.92, và MAPE = 26.48\%, cải thiện đáng kể so với ARIMA (65.6\% về RMSE) và tương đương với LSTM. Thứ hai, XGBoost có khả năng tổng quát hóa tốt với tỷ lệ overfitting thấp nhất (1.11x), đảm bảo hiệu quả tốt trên dữ liệu mới. Thứ ba, XGBoost có tốc độ huấn luyện nhanh, chỉ cần khoảng vài phút để huấn luyện 123 cây, cho phép retraining thường xuyên để cập nhật mô hình với dữ liệu mới. Thứ tư, XGBoost có khả năng giải thích tốt nhờ feature importance, giúp hiểu rõ các yếu tố ảnh hưởng đến dự báo như \texttt{req\_lag\_1}, \texttt{rolling\_mean\_1h}, \texttt{req\_lag\_12}, \texttt{hour\_cos}, và \texttt{hour\_sin}. Thứ năm, XGBoost dễ triển khai trong môi trường production với nhiều thư viện hỗ trợ và yêu cầu tài nguyên thấp hơn LSTM. Cuối cùng, XGBoost có độ tin cậy cao, hoạt động ổn định và đáng tin cậy trong thời gian dài.
-
-Để triển khai XGBoost trong production, chúng tôi đề xuất các bước sau: (1) Huấn luyện mô hình XGBoost tối ưu với các tham số \texttt{n\_estimators = 123}, \texttt{max\_depth = 6}, \texttt{learning\_rate = 0.1}, \texttt{subsample = 0.8}, và \texttt{colsample\_bytree = 0.8}; (2) Lưu mô hình đã huấn luyện để sử dụng cho dự báo; (3) Tạo API endpoint `/forecast` để nhận request dự báo và trả về kết quả; (4) Thiết lập cơ chế retraining định kỳ (ví dụ: hàng tuần) để cập nhật mô hình với dữ liệu mới; (5) Thiết lập cơ chế monitoring để theo dõi hiệu quả của mô hình và phát hiện degradation; và (6) Thiết lập cơ chế rollback để quay về phiên bản mô hình trước nếu phiên bản mới hoạt động kém hơn.
-
-\subsection{Các kịch bản sử dụng khác nhau}
-
-Mặc dù XGBoost là lựa chọn tối ưu cho production use trong hầu hết các kịch bản, có một số kịch bản khác mà các mô hình khác có thể phù hợp hơn.
-
-Nếu \textbf{độ giải thích} là ưu tiên hàng đầu (ví dụ: cần giải thích cho các stakeholder không chuyên về kỹ thuật), ARIMA là lựa chọn tốt nhất nhờ các tham số có ý nghĩa thống kê rõ ràng. ARIMA cũng phù hợp cho các kịch bản cần baseline đơn giản để so sánh với các mô hình phức tạp hơn.
-
-Nếu dữ liệu có các mẫu hình tuần tự phức tạp và dài hạn mà các mô hình khác không thể nắm bắt, LSTM có thể là lựa chọn tốt hơn. LSTM đặc biệt phù hợp cho các kịch bản cần nắm bắt các mẫu hình tuần tự dài hạn như dự báo dựa trên lịch sử dài hơn 24 giờ.
-
-Nếu tài nguyên tính toán hạn chế và cần thời gian huấn luyện nhanh, ARIMA là lựa chọn tốt nhất nhờ thời gian huấn luyện nhanh nhất và yêu cầu tài nguyên thấp nhất.
-
-Nếu cần kết hợp nhiều đặc trưng khác nhau và có dữ liệu lớn, XGBoost là lựa chọn tốt nhất nhờ khả năng xử lý nhiều đặc trưng và dữ liệu lớn hiệu quả.
-
-\subsection{Kết luận}
-
-Chương này đã thực hiện đánh giá toàn diện ba mô hình dự báo lưu lượng truy cập web: ARIMA, LSTM, và XGBoost. Kết quả đánh giá cho thấy XGBoost đạt hiệu quả tốt nhất trên cả ba chỉ số RMSE, MAE và MAPE, đồng thời có tỷ lệ overfitting thấp nhất (1.11x), cho thấy khả năng tổng quát hóa tốt nhất trong ba mô hình.
-
-XGBoost cải thiện đáng kể về độ chính xác dự báo so với ARIMA (65.6\% về RMSE) và đạt hiệu quả tương đương với LSTM. XGBoost có nhiều ưu điểm phù hợp cho production use: độ chính xác cao, khả năng tổng quát hóa tốt, tốc độ huấn luyện nhanh, khả năng giải thích tốt, dễ triển khai, và độ tin cậy cao.
-
-Dựa trên các tiêu chí lựa chọn mô hình (độ chính xác dự báo, khả năng tổng quát hóa, tốc độ huấn luyện, khả năng giải thích, khả năng triển khai, và độ tin cậy), XGBoost đạt tổng điểm cao nhất (4.80), vượt trội hơn đáng kể so với ARIMA (3.10) và LSTM (3.10).
-
-Chúng tôi khuyến nghị sử dụng mô hình XGBoost cho production use trong bài toán dự báo lưu lượng truy cập web. XGBoost là lựa chọn tối ưu cho hầu hết các kịch bản, nhưng các mô hình khác có thể phù hợp hơn trong một số kịch bản đặc biệt như cần độ giải thích cao (ARIMA) hoặc cần nắm bắt các mẫu hình tuần tự dài hạn (LSTM).
-
-Trong chương tiếp theo, chúng tôi sẽ sử dụng kết quả dự báo từ mô hình XGBoost để xây dựng thuật toán autoscaling tối ưu, giúp cân bằng giữa chi phí vận hành và chất lượng dịch vụ.

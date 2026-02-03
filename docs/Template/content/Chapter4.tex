@@ -106,35 +106,6 @@ Hình \ref{fig:predictions_full} cho thấy so sánh giữa dự báo của LSTM
     \end{tabular}
 \end{table}
 
-\subsection{So sánh với ARIMA}
-
-Để đánh giá giá trị gia tăng của LSTM so với ARIMA, chúng tôi so sánh hiệu quả dự báo của hai mô hình trên cùng tập kiểm tra (cửa sổ 5 phút). Kết quả so sánh được tóm tắt trong Bảng \ref{tab:lstm_vs_arima}.
-
-\begin{table}[H]
-    \centering
-    \caption{So sánh hiệu quả dự báo giữa LSTM và ARIMA cho cửa sổ 5 phút}
-    \label{tab:lstm_vs_arima}
-    \begin{tabular}{lcccc}
-        \toprule
-        Mô hình & RMSE & MAE & MAPE (\%) & Cải thiện RMSE (\%) \\
-        \midrule
-        ARIMA & 121.86 & 99.20 & 86.26 & - \\
-        LSTM & 44.59 & 33.86 & 26.91 & +63.4 \\
-        \bottomrule
-    \end{tabular}
-\end{table}
-
-Kết quả cho thấy LSTM vượt trội hơn ARIMA trên tất cả các chỉ số đánh giá: \textbf{RMSE} giảm từ 121.86 xuống 44.59 (cải thiện 63.4\%); \textbf{MAE} giảm từ 99.20 xuống 33.86 (cải thiện 65.9\%); và \textbf{MAPE} giảm từ 86.26\% xuống 26.91\% (cải thiện 68.8\%). Điều này cho thấy LSTM có khả năng nắm bắt các mẫu hình phi tuyến tính và dài hạn trong dữ liệu traffic tốt hơn nhiều so với ARIMA.
-
-Hình \ref{fig:hyperparameter_tuning} cho thấy so sánh hiệu quả dự báo của 7 cấu hình mô hình LSTM khác nhau trong quá trình hyperparameter tuning. Cấu hình small\_model với standard training và seq\_12 đạt được MAPE thấp nhất (26.94\%) và RMSE thấp nhất (44.52).
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.9\textwidth]{images/chapter4_hyperparameter_tuning.png}
-    \caption{So sánh hiệu quả dự báo giữa các cấu hình LSTM trong quá trình Hyperparameter Tuning}
-    \label{fig:hyperparameter_tuning}
-\end{figure}
-
 \section{Phân tích và đánh giá}
 
 \subsection{Phân tích dự báo}
@@ -148,12 +119,6 @@ Tuy nhiên, mô hình vẫn có một số hạn chế. Đầu tiên, dự báo 
 Để đánh giá giá trị thực tế của mô hình LSTM, chúng tôi so sánh với hai mô hình baseline đơn giản: \textbf{Naive baseline} (dự báo bằng giá trị cuối cùng của tập huấn luyện) và \textbf{Mean baseline} (dự báo bằng giá trị trung bình của tập huấn luyện). Kết quả so sánh cho thấy LSTM vượt trội hơn đáng kể so với cả hai baseline.
 
 LSTM cải thiện 63.4\% về RMSE so với ARIMA và cải thiện khoảng 70\% so với các baseline đơn giản. Điều này cho thấy LSTM có giá trị gia tăng thực sự trong việc dự báo lưu lượng truy cập web, đặc biệt là khả năng nắm bắt các mẫu hình phi tuyến tính và dài hạn mà các mô hình thống kê truyền thống không thể làm được.
-
-\subsection{Ưu điểm và hạn chế}
-
-Mô hình LSTM có nhiều ưu điểm so với ARIMA và các mô hình thống kê truyền thống. Đầu tiên, LSTM có khả năng nắm bắt các mẫu hình phi tuyến tính và dài hạn trong dữ liệu, đặc biệt là các chu kỳ hàng ngày và hàng tuần. Thứ hai, LSTM có khả năng học được các đặc trưng từ dữ liệu đa biến, sử dụng cả error\_rate, hour\_sin, hour\_cos, is\_weekend để cải thiện độ chính xác dự báo. Thứ ba, LSTM có khả năng xử lý các chuỗi thời gian dài mà không gặp vấn đề vanishing gradient như RNN truyền thống. Cuối cùng, LSTM đạt được hiệu quả dự báo tốt hơn nhiều so với ARIMA, cải thiện 63.4\% về RMSE.
-
-Tuy nhiên, LSTM cũng có một số hạn chế. Đầu tiên, mô hình LSTM phức tạp hơn ARIMA và khó giải thích hơn, đặc biệt là các trọng số trong mạng nơ-ron không có ý nghĩa trực quan như các tham số trong ARIMA. Thứ hai, LSTM yêu cầu nhiều dữ liệu hơn để huấn luyện hiệu quả, đặc biệt là khi mô hình có nhiều tham số. Thứ ba, quá trình huấn luyện LSTM tốn nhiều thời gian và tài nguyên tính toán hơn so với ARIMA. Cuối cùng, LSTM nhạy cảm với việc lựa chọn siêu tham số, đòi hỏi quá trình hyperparameter tuning kỹ lưỡng.
 
 \subsection{Kết luận}
 
