@@ -316,39 +316,27 @@ if st.sidebar.button("🚀 Start Simulation"):
         # 5. Sleep
         time.sleep(speed / 1000)
 
-    st.success("Simulation Complete!")
+    st.success("✅ Simulation Complete!")
     
+    # --- PHẦN BỔ SUNG: BÁO CÁO CHI PHÍ & HIỆU SUẤT ---
     st.divider()
-    st.subheader("📊 Full Session Summary")
+    st.subheader("📊 Full Session Executive Summary")
     
-    # --- FULL HISTORY CHART ---
-    fig_full = go.Figure()
+    s_col1, s_col2, s_col3, s_col4 = st.columns(4)
+    s_col1.metric("Total Processed", f"{total_requests:,} reqs")
+    s_col2.metric("Total Dropped", f"{total_dropped:,} reqs", delta=f"{(total_dropped/total_requests)*100:.2f}%" if total_requests > 0 else "0%", delta_color="inverse")
+    s_col3.metric("Total Infrastructure Cost", f"${total_cost:.2f}")
     
-    fig_full.add_trace(go.Scatter(
-        x=time_history, y=capacity_history,
-        fill='tozeroy', mode='none',
-        name='Capacity',
-        fillcolor='rgba(0, 255, 0, 0.1)'
-    ))
-    
-    fig_full.add_trace(go.Scatter(
-        x=time_history, y=load_history,
-        mode='lines', name='Actual Load',
-        line=dict(color='blue')
-    ))
-    
-    fig_full.add_trace(go.Scatter(
-        x=time_history, y=dropped_history,
-        mode='markers', name='Dropped',
-        marker=dict(color='red', size=8, symbol='x')
-    ))
+    # Tính toán hiệu quả (Cost per 1k Requests)
+    cost_per_k = (total_cost / total_requests * 1000) if total_requests > 0 else 0
+    s_col4.metric("Efficiency", f"${cost_per_k:.4f} /1k req")
 
-    fig_full.update_layout(
-        title="Comprehensive Load Analysis (Full Duration)",
-        xaxis_title="Simulation Minute",
-        yaxis_title="Requests / Minute",
-        height=500,
-        margin=dict(l=0, r=0, t=30, b=0)
-    )
-    
-    st.plotly_chart(fig_full, width="stretch")
+    # Hiển thị bảng dữ liệu chi tiết nếu cần
+    with st.expander("📂 View Detailed Session Logs"):
+        summary_df = pd.DataFrame({
+            "Step": time_history,
+            "Actual Load": load_history,
+            "Capacity": capacity_history,
+            "Dropped": [d if d is not None else 0 for d in dropped_history]
+        })
+        st.dataframe(summary_df, use_container_width=True)

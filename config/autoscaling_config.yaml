@@ -1,8 +1,8 @@
 # Autoscaling System Configuration
 
 server:
-  capacity: 300          # Requests per minute (match your 1m window )
-  max_servers: 100       # Reasonable limit for the 1995 workload
+  capacity: 20          # Requests per minute (match your 1m window )
+  max_servers: 25       # Reasonable limit for the 1995 workload
   min_servers: 2         # Always have a backup node
 
 cost:
