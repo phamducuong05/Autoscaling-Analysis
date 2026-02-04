@@ -40,9 +40,14 @@ logger.info("✅ Autoscaler Engine Initialized (Stateful)")
 
 # --- LOAD AI MODEL ---
 # Extracted to model_loader.py - exact same logic
+
 real_model, scaler_features, scaler_target = load_lstm_model(
     MODEL_DIR, MODEL_INPUT_SIZE, MODEL_HIDDEN_SIZE, MODEL_NUM_LAYERS
 )
+
+@app.get("/")
+def root():
+    return {"status": "ok", "message": "Autoscaling Analysis API is Running", "docs": "/docs"}
 
 @app.post("/forecast", response_model=ForecastResponse)
 def get_forecast_live(req: PredictionRequest):
