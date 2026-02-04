@@ -2,7 +2,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from config.settings import PLOT_CONFIG
-
+import yaml
+import os
 
 def plot_imputation_check(df_input, outages):
     """
@@ -96,3 +97,18 @@ def plot_imputation_check(df_input, outages):
 
     plt.tight_layout()
     plt.show()
+
+def load_config(config_path="config/autoscaling_config.yaml"):
+    if not os.path.exists(config_path):
+        if os.path.exists(os.path.join("..", config_path)):
+            config_path = os.path.join("..", config_path)
+        elif os.path.exists(os.path.join("..", "..", config_path)):
+            config_path = os.path.join("..", "..", config_path)
+            
+    try:
+        with open(config_path, 'r') as file:
+            config = yaml.safe_load(file)
+        return config
+    except FileNotFoundError:
+        print(f"Error: Config file not found at {config_path}")
+        return None
