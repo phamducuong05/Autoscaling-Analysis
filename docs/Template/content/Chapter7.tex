@@ -2,17 +2,47 @@
 
 \section{Thuật toán Autoscaling}
 
-\subsection{Chiến lược scaling}
+\subsection{Chiến lược AI Predictive Scaling (Gen 2)}
 
-Để giải quyết bài toán cân bằng giữa chi phí hạ tầng và cam kết chất lượng dịch vụ (SLA), đồ án đã triển khai và so sánh ba chiến lược scaling khác nhau. Sự khác biệt cốt lõi nằm ở độ chủ động (Proactive) và khả năng thích ứng (Adaptive) của thuật toán.
+Đây là chiến lược nòng cốt của đồ án, được thiết kế để khắc phục hoàn toàn nhược điểm "độ trễ" (Lag) của các phương pháp truyền thống. Thuật toán không chỉ dựa vào dự báo đơn thuần mà còn tích hợp một "hệ thống ra quyết định lai ghép" (Hybrid Decision Engine) nhằm đảm bảo tính an toàn tuyệt đối cho hệ thống. Quy trình xử lý gồm 4 tầng bảo vệ:
 
-\begin{enumerate}
-    \item \textbf{Static Scaling (Fixed Capacity)}: Cấp phát tài nguyên cố định ở mức tối đa (Max Servers = 35) để đảm bảo không bao giờ thiếu hụt tài nguyên. Đây là chiến lược "an toàn nhưng lãng phí", đóng vai trò là Baseline (đường cơ sở) để so sánh độ hiệu quả.
-    
-    \item \textbf{Reactive Scaling (Threshold-based)}: Chiến lược phản ứng truyền thống dựa trên ngưỡng sử dụng CPU/Request. Hệ thống sẽ tăng server khi tải vượt quá 80\% capacity và giảm khi dưới 40\%. Nhược điểm cố hữu là độ trễ (Lag) do phải chờ tải thực sự tăng mới bắt đầu phản ứng.
-    
-    \item \textbf{AI Predictive Scaling (Gen 2)}: Chiến lược đề xuất của đồ án. Hệ thống sử dụng mô hình LSTM để dự báo tải trong 15 phút tới. Điểm đột phá nằm ở cơ chế \textit{"Peak-Driven Scaling"}: thay vì scale theo giá trị trung bình, hệ thống luôn scale theo \textbf{đỉnh tải dự báo cao nhất} trong khung thời gian tới, cộng thêm một lớp đệm an toàn động ($K \times \sigma$). Điều này giúp loại bỏ hoàn toàn độ trễ.
-\end{enumerate}
+\subsubsection{Tầng 1: Phát hiện Bất thường (Anomaly Detection)}
+Trước khi thực hiện dự báo, hệ thống kiểm tra tín hiệu đầu vào để loại bỏ các trượng hợp tấn công từ chối dịch vụ (DDoS) hoặc lỗi dữ liệu.
+\begin{equation}
+    is\_ddos = (Forecast > 10) \land (CurrentLoad > Forecast \times Multiplier_{ddos})
+\end{equation}
+Nếu phát hiện bất thường (DDoS), hệ thống sẽ chuyển sang chế độ "Safety Mode", bỏ qua dự báo và cấp phát tài nguyên dựa trên tải thực tế nhưng bị giới hạn bởi ngưỡng trần (\texttt{ddos\_max\_servers}) để tránh bùng nổ chi phí.
+
+\subsubsection{Tầng 2: Hệ số An toàn Thích ứng (Adaptive Safety Margin)}
+Thay vì nhân một hệ số an toàn cố định (Fixed Multiplier), hệ thống sử dụng thuật toán \textbf{$K$-Sigma} để tính toán vùng đệm an toàn dựa trên độ tin cậy của mô hình tại thời điểm đó. Hệ số $K$ biến thiên theo hệ số biến thiên ($CV = \sigma / \mu$):
+
+\begin{equation}
+    K = \begin{cases} 
+      1.0 & CV < 0.1 \quad \text{(Tin cậy cao - Tiết kiệm tối đa)} \\
+      1.2 & 0.1 \le CV \le 0.3 \quad \text{(Bình thường)} \\
+      1.35 & CV > 0.3 \quad \text{(Biến động mạnh - Tăng đệm an toàn)}
+   \end{cases}
+\end{equation}
+
+Từ đó, nhu cầu dự báo (\texttt{Demand}) được tính toán:
+\begin{equation}
+    Demand_{predict} = \lceil \frac{Forecast + (K \times \sigma)}{Capacity_{server}} \rceil
+\end{equation}
+Công thức này cho phép hệ thống tự động "nới lỏng" hoặc "thắt chặt" tài nguyên một cách thông minh, tối ưu hóa chi phí khi tải ổn định và tăng độ an toàn khi tải biến động.
+
+\subsubsection{Tầng 3: Mạng lưới an toàn Reactive (Reactive Safety Net)}
+Để đề phòng trường hợp mô hình dự báo sai (Under-prediction), hệ thống luôn tính toán song song một giá trị nhu cầu dựa trên tải thực tế hiện tại (\texttt{Demand\_React}). Quyết định cuối cùng là giá trị lớn nhất của cả hai:
+\begin{equation}
+    Demand_{final} = \max(Demand_{predict}, Demand_{react})
+\end{equation}
+Cơ chế này đảm bảo hệ thống không bao giờ cấp phát ít tài nguyên hơn nhu cầu thực tế, giữ vững cam kết SLA.
+
+\subsubsection{Tầng 4: Ổn định theo Đỉnh (Peak-Driven Stability)}
+Để tránh hiện tượng dao động (Flapping), hệ thống không sử dụng giá trị tức thời mà sử dụng cửa sổ ổn định (Stability Window) 5 phút. Điểm đặc biệt là chúng tôi sử dụng toán tử \textbf{MAX} (thay vì Average):
+\begin{equation}
+    ScaleTarget = \max(History_{t-5} \dots History_{t})
+\end{equation}
+Cách tiếp cận này gọi là \textit{"Peak-Driven Scaling"}: Hệ thống sẽ phản ứng theo đỉnh tải cao nhất dự báo được trong tương lai gần. Điều này cho phép bắt trọn các đợt tăng tải đột biến (Spikes) dù chúng chỉ kéo dài 1-2 phút, giải quyết triệt để bài toán rớt gói tin ở các hệ thống nhạy cảm.
 
 Bảng \ref{tab:scaling_strategies} tóm tắt cấu hình tham số thực tế của các chiến lược:
 
@@ -107,3 +137,77 @@ Bảng số liệu chi tiết (được trích xuất từ báo cáo benchmark t
 \end{enumerate}
 
 Tóm lại, giải pháp AI Predictive Scaling đề xuất đã đạt được mục tiêu kép: \textbf{Rẻ nhất} và \textbf{An toàn nhất} (trong nhóm Dynamic Scaling), chứng minh tính khả thi để áp dụng vào môi trường thực tế.
+
+
+\section{Demo Hệ thống}
+
+Để minh họa khả năng hoạt động thực tế của thuật toán AI Predictive Scaling (Gen 2), chúng tôi đã xây dựng một hệ thống Demo hoàn chỉnh theo kiến trúc Client-Server. Hệ thống cho phép mô phỏng lại lưu lượng truy cập lịch sử (Replay Traffic) và quan sát phản ứng của AI trong thời gian thực.
+
+\subsection{Kiến trúc hệ thống}
+
+Hệ thống Demo được chia thành hai phân hệ độc lập, giao tiếp với nhau qua chuẩn RESTful API:
+
+\begin{enumerate}
+    \item \textbf{Backend Service (API Layer)}: Được xây dựng bằng \textbf{FastAPI} (Python), đóng vai trò là "bộ não" xử lý trung tâm. Service này chứa hai components chính:
+    \begin{itemize}
+        \item \textit{Inference Engine}: Chịu trách nhiệm load model LSTM đã huấn luyện và thực hiện dự báo (Forecast).
+        \item \textit{Autoscaler Core}: Chứa toàn bộ logic stateful của thuật toán Gen 2 (Stability Window, Cooldown, Adaptive Safety Factor).
+    \end{itemize}
+    
+    \item \textbf{Frontend Dashboard (Visualization Layer)}: Sử dụng \textbf{Streamlit}, đóng vai trò là giao diện điều khiển và giám sát. Dashboard thực hiện vòng lặp mô phỏng (Simulation Loop), gửi data từng phút lên Backend và hiển thị kết quả phản hồi dưới dạng biểu đồ thời gian thực.
+\end{enumerate}
+
+\subsection{API Specification}
+
+Backend cung cấp hai endpoints chính để phục vụ quá trình scaling:
+
+\subsubsection{1. Forecast Endpoint (@[api])}
+\texttt{POST /forecast}
+
+Endpoint này nhận vào dữ liệu lịch sử tải (các bước thời gian trước đó) và trả về giá trị dự báo cho bước tiếp theo, kèm theo độ lệch chuẩn ($\sigma$) để tính toán độ tin cậy.
+
+\begin{itemize}
+    \item \textbf{Input}: \texttt{recent\_history} (List[float]), \texttt{error\_history} (List[float]), \texttt{hour\_sin/cos} (Feature Engineering).
+    \item \textbf{Output}: 
+    \begin{itemize}
+        \item \texttt{forecast\_load}: Giá trị dự báo tải trung bình.
+        \item \texttt{sigma}: Độ lệch chuẩn dùng để tính khoảng tin cậy (Confidence Interval).
+        \item \texttt{cv}: Hệ số biến thiên (Coefficient of Variation) dùng để quyết định hệ số an toàn $K$.
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{2. Scaling Decision Endpoint}
+\texttt{POST /recommend-scaling}
+
+Endpoint này là nơi chứa "bộ não" của hệ thống autoscaling. Nó nhận vào tải hiện tại và tải dự báo, sau đó chạy qua chuỗi logic quyết định (Anomaly Detection $\rightarrow$ Safety Factor $\rightarrow$ Stability Window $\rightarrow$ Cooldown).
+
+\begin{itemize}
+    \item \textbf{Output}: 
+    \begin{itemize}
+        \item \texttt{servers}: Số lượng server mục tiêu.
+        \item \texttt{action}: Hành động cụ thể (SCALE\_OUT, SCALE\_IN, HOLD, WAIT\_COOLDOWN).
+        \item \texttt{details}: Metadata chi tiết để debug (Cost, Dropped requests, v.v.).
+    \end{itemize}
+\end{itemize}
+
+\subsection{Dashboard Giám sát}
+
+Giao diện Dashboard được thiết kế để cung cấp cái nhìn toàn cảnh về hoạt động của hệ thống.
+
+\begin{enumerate}
+    \item \textbf{Real-time Chart}: Biểu đồ Plotly cập nhật trực tiếp theo từng bước mô phỏng (Step), hiển thị 3 đường tín hiệu quan trọng:
+    \begin{itemize}
+        \item \textit{Actual Load (Màu xanh dương)}: Tải thực tế từ dataset.
+        \item \textit{AI Forecast (Màu cam)}: Đường dự báo kèm theo vùng bóng mờ (Shaded Area) thể hiện khoảng tin cậy $2\sigma$.
+        \item \textit{System Capacity (Nét đứt màu xanh lá)}: Tổng năng lực phục vụ của hệ thống. Khi đường này nằm trên đường Load nghĩa là hệ thống an toàn.
+    \end{itemize}
+    
+    \item \textbf{Metrics Panel}: Hiển thị các chỉ số KPI quan trọng:
+    \begin{itemize}
+        \item \textbf{Total Cost}: Chi phí hạ tầng tích lũy + Phạt SLA.
+        \item \textbf{AI Confidence (CV)}: Độ tự tin của model. Màu sắc của metric này sẽ đảo chiều (Inverse) để cảnh báo khi độ tin cậy thấp (CV cao).
+        \item \textbf{System Status}: Trạng thái hiện tại (Stable, Scaling, hay Warming Up).
+    \end{itemize}
+    
+    \item \textbf{Simulation Controls}: Thanh trượt bên trái cho phép người dùng điều chỉnh tốc độ mô phỏng (Speed ms) và chọn khoảng thời gian (Minute Index) để test các tình huống cụ thể (ví dụ: test khả năng chịu tải lúc 2h sáng).
+\end{enumerate}
