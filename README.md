@@ -159,7 +159,7 @@ Autoscaling-Analysis/
   - `ml_model.ipynb`: LSTM training & evaluation
   - `arima_model.ipynb`: Baseline model (ARIMA comparison)
   - `duccuong_lstm.ipynb`: Advanced feature engineering
-  - `ducer_system1.ipynb`: Autoscaling logic prototypee
+  - `ducer_system1.ipynb`: Autoscaling logic prototype
 
 ### 📌 **output/** - Kết quả Đầu ra
 - **Chức năng**: Lưu kết quả từ training & inference
