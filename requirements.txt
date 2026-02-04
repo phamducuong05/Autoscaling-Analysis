@@ -58,3 +58,4 @@ streamlit
 plotly
 requests
 joblib
+tqdm
