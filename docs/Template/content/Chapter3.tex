@@ -2,43 +2,13 @@
 
 \section{Tổng quan mô hình ARIMA}
 
-Mô hình ARIMA (AutoRegressive Integrated Moving Average) là một phương pháp thống kê kinh điển trong dự báo chuỗi thời gian, kết hợp ba thành phần chính để nắm bắt và dự báo các mẫu hình trong dữ liệu. Ba thành phần này bao gồm: \textbf{AR (AutoRegressive)} sử dụng các giá trị quá khứ để dự báo giá trị tương lai; \textbf{I (Integrated)} áp dụng phép sai phân (differencing) để biến đổi chuỗi thời gian thành chuỗi dừng (stationary); và \textbf{MA (Moving Average)} sử dụng các sai số dự báo quá khứ để cải thiện độ chính xác của dự báo.
+Mô hình ARIMA (AutoRegressive Integrated Moving Average) kết hợp ba thành phần: \textbf{AR} sử dụng giá trị quá khứ, \textbf{I} áp dụng sai phân để biến đổi thành chuỗi dừng, và \textbf{MA} sử dụng sai số dự báo quá khứ.
 
 \section{Phương pháp huấn luyện}
 
-Trước khi huấn luyện mô hình ARIMA, chúng tôi thực hiện các bước chuẩn bị dữ liệu và phân tích đặc điểm để đảm bảo dữ liệu đáp ứng các giả định của mô hình.
+\subsection{Đánh giá tính dừng và lựa chọn tham số}
 
-\subsection{Đánh giá tính dừng (Stationarity Assessment)}
-
-Mô hình ARIMA yêu cầu chuỗi thời gian phải có tính dừng, nghĩa là: giá trị trung bình không thay đổi theo thời gian; phương sai không thay đổi theo thời gian; và tự tương quan giữa các giá trị tại các khoảng thời gian khác không thay đổi theo thời gian. Để đánh giá tính dừng, chúng tôi sử dụng hai phương pháp: kiểm tra trực quan bằng cách vẽ các thống kê rolling (rolling mean và rolling standard deviation) và kiểm tra thống kê Augmented Dickey-Fuller (ADF test).
-
-Hình \ref{fig:rolling_statistics} cho thấy thống kê rolling của chuỗi thời gian số lượng request theo cửa sổ 5 phút. Rolling mean (đường nét đứt màu đỏ) và rolling standard deviation (đường nét đứt màu xanh) tương đối ổn định trong suốt giai đoạn huấn luyện, cho thấy chuỗi có tính dừng. Kết quả kiểm tra ADF cho thấy \texttt{p-value = 0.000000}, nhỏ hơn nhiều so với mức ý nghĩa 0.05, cho phép chúng tôi bác bỏ giả thuyết về unit root và kết luận chuỗi là dừng. Do đó, tham số \texttt{d = 0} (không cần áp dụng sai phân).
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.9\textwidth]{images/chapter3_rolling_statistics.png}
-    \caption{Rolling Statistics - Đánh giá tính dừng của chuỗi thời gian}
-    \label{fig:rolling_statistics}
-\end{figure}
-
-\subsection{Phân tích tự tương quan (ACF và PACF)}
-
-Sau khi xác định chuỗi là dừng, chúng tôi phân tích cấu trúc tự tương quan để xác định các tham số \texttt{p} và \texttt{q} cho mô hình ARIMA. \textbf{ACF (Autocorrelation Function)} đo lường tương quan giữa chuỗi thời gian và các giá trị lag của nó, trong khi \textbf{PACF (Partial Autocorrelation Function)} đo lường tương quan loại bỏ ảnh hưởng của các lag trung gian.
-
-Hình \ref{fig:acf_pacf} cho thấy đồ thị ACF và PACF của chuỗi thời gian. Đồ thị ACF (bên trái) cho thấy tương quan giảm rất chậm theo thời gian, biểu hiện tính persistence cao của chuỗi. Đồ thị PACF (bên phải) cho thấy có đỉnh rõ rệt tại lag 1 (tương quan rất mạnh) và đỉnh nhỏ hơn tại lag 2, sau đó các giá trị giảm vào vùng tin cậy (confidence interval). Dựa trên các mẫu hình này, chúng tôi đề xuất mô hình ban đầu là \texttt{ARIMA(1,0,0)} hoặc \texttt{ARIMA(2,0,0)}.
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.9\textwidth]{images/chapter3_acf_pacf.png}
-    \caption{Đồ thị ACF và PACF cho phân tích tham số mô hình}
-    \label{fig:acf_pacf}
-\end{figure}
-
-\subsection{Lựa chọn tham số tự động (Auto-ARIMA)}
-
-Thay vì chọn tham số \texttt{(p,d,q)} thủ công dựa trên phân tích ACF/PACF, chúng tôi sử dụng thuật toán \texttt{auto\_arima} từ thư viện \texttt{pmdarima} để tìm kiếm tự động các tham số tối ưu. Thuật toán này tìm kiếm qua lưới các tổ hợp tham số và chọn mô hình có tiêu chuẩn thông tin Akaike (AIC) thấp nhất, cân bằng giữa độ phù hợp và độ phức tạp của mô hình.
-
-Chúng tôi huấn luyện mô hình ARIMA trên cả ba cửa sổ thời gian khác nhau (1m, 5m, 15m) để so sánh hiệu quả dự báo theo các mức độ phân giải dữ liệu khác nhau. Kết quả lựa chọn tham số cho từng cửa sổ được tóm tắt trong Bảng \ref{tab:arima_params}: \texttt{ARIMA(5,0,1)} cho cửa sổ 1m với \texttt{AIC = 605677.82}; \texttt{ARIMA(2,0,1)} cho cửa sổ 5m với \texttt{AIC = 159089.09}; và \texttt{ARIMA(3,0,2)} cho cửa sổ 15m với \texttt{AIC = 62299.72}.
+Chuỗi thời gian có tính dừng (p-value ADF = 0.000000), không cần sai phân (d = 0). Chúng tôi sử dụng \texttt{auto\_arima} để tìm kiếm tham số tối ưu dựa trên tiêu chuẩn AIC. Kết quả cho ba cửa sổ thời gian: \texttt{ARIMA(5,0,1)} cho 1m (AIC = 605677.82), \texttt{ARIMA(2,0,1)} cho 5m (AIC = 159089.09), và \texttt{ARIMA(3,0,2)} cho 15m (AIC = 62299.72).
 
 \begin{table}[H]
     \centering
@@ -55,25 +25,24 @@ Chúng tôi huấn luyện mô hình ARIMA trên cả ba cửa sổ thời gian 
     \end{tabular}
 \end{table}
 
-\subsection{So sánh thủ công và tự động}
+Hình \ref{fig:acf_pacf} cho thấy đồ thị ACF và PACF cho cửa sổ 5m. Đồ thị PACF có đỉnh rõ rệt tại lag 1 và lag 2, gợi ý mô hình ARIMA(2,0,1).
 
-Để đánh giá hiệu quả của việc lựa chọn tham số thủ công so với tự động, chúng tôi so sánh ba mô hình trên dữ liệu cửa sổ 5m: \texttt{ARIMA(1,0,0)} (thủ công dựa trên PACF), \texttt{ARIMA(2,0,0)} (thủ công dựa trên PACF), và \texttt{ARIMA(2,0,1)} (tự động). Kết quả cho thấy mô hình tự động có \texttt{AIC} thấp nhất (159089.09), thấp hơn đáng kể so với hai mô hình thủ công (162404.80 và 160806.62). Điều này cho thấy thuật toán tự động tìm kiếm được các tổ hợp tham số tốt hơn so với phân tích trực quan, đặc biệt là khả năng kết hợp cả thành phần AR và MA.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{images/chapter3_acf_pacf.png}
+    \caption{Đồ thị ACF và PACF cho phân tích tham số mô hình}
+    \label{fig:acf_pacf}
+\end{figure}
 
 \section{Kết quả cho cửa sổ 5 phút}
 
-Sau khi huấn luyện xong mô hình ARIMA cho cửa sổ 5 phút, chúng tôi đánh giá chi tiết hiệu quả dự báo trên tập kiểm tra (test set) từ 23/8/1995 đến 31/8/1995. Cửa sổ 5 phút được chọn để phân tích sâu vì nó đạt được sự cân bằng tốt nhất giữa độ chi tiết và độ ổn định trong ba cửa sổ thời gian được đánh giá.
-
 \subsection{Cấu trúc mô hình}
 
-Mô hình \texttt{ARIMA(2,0,1)} được huấn luyện trên 14,976 quan sát dữ liệu 5 phút. Các hệ số tự hồi quy là \texttt{$\phi_1 = 1.228, \phi_2 = -0.234$} và hệ số trung bình động là \texttt{$\theta_1 = -0.771$}. Cấu trúc mô hình đơn giản hơn so với cửa sổ 1 phút, cho thấy dữ liệu 5 phút đã được làm mượt mà hơn nhờ quá trình aggregation.
-
-Tất cả các tham số đều có ý nghĩa thống kê (p-value < 0.001), cho thấy mô hình phù hợp tốt với dữ liệu huấn luyện. Tham số \texttt{$\phi_1 = 1.228$} cho thấy giá trị hiện tại phụ thuộc mạnh vào giá trị ngay trước đó, trong khi tham số \texttt{$\phi_2 = -0.234$} cho thấy sự điều chỉnh từ giá trị hai bước trước đó. Tham số \texttt{$\theta_1 = -0.771$} cho thấy mô hình sử dụng sai số dự báo quá khứ để điều chỉnh dự báo hiện tại.
+Mô hình \texttt{ARIMA(2,0,1)} được huấn luyện trên 14,976 quan sát. Các hệ số: \texttt{$\phi_1 = 1.228, \phi_2 = -0.234, \theta_1 = -0.771$}. Tất cả tham số đều có ý nghĩa thống kê (p-value < 0.001).
 
 \subsection{Hiệu quả dự báo}
 
-Khi dự báo trên tập kiểm tra (2,592 quan sát), mô hình đạt được các chỉ số hiệu quả sau: \texttt{RMSE = 121.86}, \texttt{MAE = 99.20}, và \texttt{MAPE = 86.26\%}. Cửa sổ 5 phút đạt được sự cân bằng tốt giữa độ chi tiết và độ ổn định: \texttt{RMSE} và \texttt{MAE} thấp hơn so với baseline (mean baseline), nhưng \texttt{MAPE} vẫn cao do ảnh hưởng của các giá trị nhỏ vào ban đêm.
-
-Bảng \ref{tab:performance_5m} tóm tắt hiệu quả dự báo của mô hình ARIMA cho cửa sổ 5 phút.
+Trên tập kiểm tra (2,592 quan sát): RMSE = 121.86, MAE = 99.20, MAPE = 86.26\%. So với baseline, ARIMA chỉ cải thiện 0.5\% về RMSE, cho thấy giá trị gia tăng hạn chế.
 
 \begin{table}[H]
     \centering
@@ -88,24 +57,11 @@ Bảng \ref{tab:performance_5m} tóm tắt hiệu quả dự báo của mô hìn
     \end{tabular}
 \end{table}
 
-\section{Model Diagnostics}
-
-Sau khi huấn luyện xong mô hình, chúng tôi thực hiện các kiểm tra chẩn đoán để xác nhận mô hình có đáp ứng các giả định của ARIMA.
-
-Hình \ref{fig:diagnostics_5m} cho thấy đồ thị chẩn đoán mô hình cho cửa sổ 5 phút. Đồ thị bao gồm: (1) Residuals over time (phần trên trái) cho thấy các phần dư dao động quanh giá trị 0; (2) Residuals distribution (phần trên phải) cho thấy phân phối gần chuẩn với mean gần 0; (3) Q-Q plot (phần dưới trái) cho thấy các điểm gần như nằm trên đường chéo, cho thấy phân phối gần chuẩn; và (4) ACF of residuals (phần dưới phải) cho thấy không có cột nào vượt quá vùng tin cậy, cho thấy không có tự tương quan đáng kể trong các phần dư.
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.9\textwidth]{images/chapter3_diagnostics_5m.png}
-    \caption{Chẩn đoán mô hình ARIMA cho cửa sổ 5 phút}
-    \label{fig:diagnostics_5m}
-\end{figure}
-
 \section{Phân tích và đánh giá}
 
 \subsection{So sánh với baseline}
 
-Để đánh giá giá trị thực tế của mô hình ARIMA, chúng tôi so sánh với hai mô hình baseline đơn giản: \textbf{Naive baseline} (dự báo bằng giá trị cuối cùng của tập huấn luyện) và \textbf{Mean baseline} (dự báo bằng giá trị trung bình của tập huấn luyện). Kết quả so sánh cho cửa sổ 5 phút được tóm tắt trong Bảng \ref{tab:baseline_comparison}.
+ARIMA chỉ cải thiện 0.5\% so với mean baseline (RMSE: 121.86 vs 122.50). Hình \ref{fig:baseline_comparison} cho thấy dự báo ARIMA gần như trùng với dự báo mean.
 
 \begin{table}[H]
     \centering
@@ -120,10 +76,6 @@ Hình \ref{fig:diagnostics_5m} cho thấy đồ thị chẩn đoán mô hình ch
     \end{tabular}
 \end{table}
 
-Kết quả cho thấy mô hình ARIMA chỉ cải thiện nhẹ 0.5\% so với baseline. Điều này cho thấy mô hình ARIMA gần như chỉ dự báo bằng giá trị trung bình, cho thấy giá trị gia tăng của mô hình là rất hạn chế.
-
-Hình \ref{fig:baseline_comparison} cho thấy so sánh trực quan giữa dự báo của mô hình ARIMA (đường nét đứt màu đỏ), dự báo naive (đường nét đứt màu xanh lá), và dự báo mean (đường nét đứt màu cam). Mô hình ARIMA gần như trùng với dự báo mean, cho thấy giá trị gia tăng của mô hình là rất hạn chế.
-
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.9\textwidth]{images/chapter3_baseline_comparison_5m.png}
@@ -133,19 +85,4 @@ Hình \ref{fig:baseline_comparison} cho thấy so sánh trực quan giữa dự 
 
 \subsection{Phân tích overfitting}
 
-Để đánh giá mức độ overfitting của mô hình, chúng tôi so sánh hiệu quả trên tập huấn luyện (in-sample) và tập kiểm tra (out-of-sample). Kết quả cho thấy mô hình có hiện tượng overfitting rõ rệt: hiệu quả trên tập kiểm tra kém hơn đáng kể so với tập huấn luyện.
-
-\begin{table}[H]
-    \centering
-    \caption{So sánh hiệu quả in-sample và out-of-sample cho cửa sổ 5 phút}
-    \label{tab:overfitting}
-    \begin{tabular}{lcccc}
-        \toprule
-        Cửa sổ & In-sample RMSE & Out-of-sample RMSE & Tỷ lệ overfitting \\
-        \midrule
-        5m & 49.02 & 121.86 & 2.48x \\
-        \bottomrule
-    \end{tabular}
-\end{table}
-
-Tỷ lệ overfitting được tính bằng tỷ lệ giữa \texttt{RMSE out-of-sample} và \texttt{RMSE in-sample}. Cửa sổ 5 phút có tỷ lệ 2.48x, cao hơn 2, cho thấy mô hình ARIMA overfitting nghiêm trọng, với hiệu quả trên tập kiểm tra kém hơn 2.5 lần so với tập huấn luyện.
+ARIMA có hiện tượng overfitting nghiêm trọng: RMSE out-of-sample (121.86) gấp 2.48 lần RMSE in-sample (49.02). Điều này cho thấy mô hình phù hợp tốt với dữ liệu huấn luyện nhưng tổng quát hóa kém trên dữ liệu mới.
