@@ -52,11 +52,11 @@ class Autoscaler:
         # Logic: K factor depends on CV (Model Confidence)
         k_factor = 0.0
         if cv < 0.1:
-            k_factor = 1.5 # High Confidence
+            k_factor = 1.0 # High Confidence
         elif cv <= 0.3:
-            k_factor = 2.0 # Normal
+            k_factor = 1.2 # Normal
         else:
-            k_factor = 3.0 # Low Confidence / Volatile -> High Safety
+            k_factor = 1.35 # Low Confidence / Volatile -> High Safety
             
         # 2. Raw Demand Calculation
         if is_ddos:
@@ -105,7 +105,7 @@ class Autoscaler:
         
         # Case A: Potential SCALE OUT
         # We use MIN of the window to ensure sustained high demand
-        sustained_demand_up = min(self.history_demand)
+        sustained_demand_up = max(self.history_demand)
         
         if sustained_demand_up > self.current_servers:
             # Cold Start Check: Only scale out if we have enough data points

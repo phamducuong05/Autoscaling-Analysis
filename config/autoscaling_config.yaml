@@ -2,7 +2,7 @@
 
 server:
   capacity: 20          # Requests per minute (match your 1m window )
-  max_servers: 25       # Reasonable limit for the 1995 workload
+  max_servers: 35       # Reasonable limit for the 1995 workload
   min_servers: 2         # Always have a backup node
 
 cost:
@@ -12,9 +12,9 @@ cost:
 safety:
   # Coefficient of Variation thresholds based on EDA
   factors:
-    high_risk: 1.63      # Panic Mode (02:00 - 07:00)
-    standard: 1.42       # Standard Mode
-    economic: 1.32       # Eco Mode (11:00 - 16:00)
+    high_risk: 1.35       # Panic Mode (02:00 - 07:00)
+    standard: 1.2        # BOOSTED: To beat Reactive on Stability (Zero Drops)
+    economic: 1.1        # LEANER: To save cost during safe hours
   
   # Hour ranges (inclusive start, exclusive end for implementation simplicity usually, but we use strict hour matching)
   high_risk_hours: [2, 3, 4, 5, 6, 7]
@@ -22,12 +22,12 @@ safety:
 
 cooldown:
   scale_out_minutes: 2   # Time for a new instance to be 'Warm' [cite: 43]
-  scale_in_minutes: 6   # Be conservative when shutting down servers
+  scale_in_minutes: 4  # AGGRESSIVE: Scale in fast to save money when demand drops
 
 stability:
   window_minutes: 5      # Requirement: sustain high load for 5m 
   scale_in_buffer: 1     # Hysteresis buffer to prevent flapping 
-  max_step_change: 2     # Max servers to add/remove at once (Step Scaling) 
+  max_step_change: 5     # INCREASED: Allow faster scale up to catch spikes 
 
 anomaly:
   ddos_multiplier: 4.0   # Identify spikes that are too sharp to be organic [cite: 51]
