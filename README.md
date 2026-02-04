@@ -112,9 +112,15 @@ python run_benchmark.py
 ```
 Kết quả báo cáo sẽ được lưu tại `evaluation_results/report.md` và biểu đồ tại `evaluation_results/benchmark_plot.png`.
 
+
 ## 2. Khởi chạy Dashboard Demo (Real-time)
 
-Hệ thống Demo gồm 2 thành phần chính: **API Server** (Backend) và **Dashboard** (Frontend). Bạn cần mở 2 terminal riêng biệt để chạy chúng.
+**⚠️ Lưu ý Quan trọng trước khi chạy:**
+1.  Đảm bảo file dữ liệu test tồn tại tại đường dẫn: `data/raw/test.txt`. Nếu chưa có, hãy chạy script chuẩn bị dữ liệu hoặc copy file log vào thư mục này.
+2.  Bạn phải chạy **API Server trước** hoặc **song song** với Dashboard. Nếu API chưa bật, Dashboard sẽ báo lỗi kết nối.
+
+Hệ thống Demo gồm 2 thành phần chính: **API Server** (Backend) và **Dashboard** (Frontend). Bạn cần mở 2 cửa sổ Terminal (hoặc CMD) riêng biệt để chạy chúng cùng một lúc.
+
 
 ### Terminal 1: Khởi động API Server
 ```bash
